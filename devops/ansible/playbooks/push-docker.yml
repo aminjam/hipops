@@ -1,0 +1,23 @@
+---
+- name:  Push docker container
+  hosts: "{{ inventory }}"
+  tasks:
+    - name: Docker container state
+      shell: "docker inspect -f {{ '{{.State.Running}}' }} {{ name }}"
+      ignore_errors: yes
+      register: isRunning
+    - debug: msg="isRunning is {{ isRunning }}"
+    - name: Docker pull image
+      shell: docker pull {{ image }}
+      when: isRunning|failed or state!="running" or isRunning.stdout=="false"
+    - name: Docker stop container
+      command: docker stop {{ name }}
+      when: isRunning|failed or state!="running" or isRunning.stdout=="false"
+      ignore_errors: yes
+    - name: Docker remove container
+      command: docker rm {{ name }}
+      when: isRunning|failed or state!="running" or isRunning.stdout=="false"
+      ignore_errors: yes
+    - name: Docker run container
+      command: "docker run --name {{ name }} {{ params }}"
+      when: isRunning|failed or state!="running" or isRunning.stdout=="false"

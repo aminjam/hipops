@@ -1,0 +1,5 @@
+[ec2_web_nodejsA-helloworld-dev]
+172.20.21.10 ansible_connection=ssh ansible_ssh_user=vagrant
+
+[ec2_db_mongodbA-helloworld-dev]
+172.20.21.10 ansible_connection=ssh ansible_ssh_user=vagrant

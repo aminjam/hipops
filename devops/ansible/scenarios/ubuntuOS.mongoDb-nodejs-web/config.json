@@ -1,0 +1,73 @@
+{
+	"id": "helloworld",
+	"env": "dev",
+	"apps":[
+		{
+			"name": "consul-{{.Id}}-{{.Env}}",
+			"type": "consul",
+			"config":"config.json",
+			"data":"/data/{{.Id}}/consul"
+		},
+		{
+			"name": "nodejsA-{{.Id}}-{{.Env}}",
+			"type": "nodejs",
+			"branch": "master",
+			"repo": "github.com/aminjam/express-hello-world.git",
+			"host": "helloworld-nodejs-app.com",
+			"data": "/data/{{.Id}}/nodejs/nodejsA-{{.Id}}-{{.Env}}",
+			"image":"aminjam/tahr-consul-nodejs",
+			"ports": [3001],
+			"start": "/start.sh app.js",
+      "sshKey": "/Users/cool/.ssh/id_rsa"
+		},
+		{
+			"name": "mongodbA-{{.Id}}-{{.Env}}",
+			"type":"mongodb",
+			"image":"aminjam/tahr-consul-mongodb",
+			"ports": [27017],
+			"data":"/data/{{.Id}}/mongodb/mongodbA-{{.Id}}-{{.Env}}",
+			"start":"/start.sh"
+		}
+	],
+	"servers":[
+		{
+			"role": "web",
+			"type": "single",
+			"apps":["{{index .Apps 1}}","{{index .Apps 3}}"]
+		}
+	],
+	"playbooks":[
+		{
+			"name": "{{.App.Name}}",
+			"play": "push-docker.yml",
+			"inventory": "ec2_db_{{.App.Name}}",
+			"app": "{{index .Apps 2}}",
+			"state": "running",
+			"actions": [{
+				"image":"{{.App.Image}}",
+				"params":"-v {{.App.Data}}:/data/db -d {{.App.Image}} {{.App.Start}}"
+			}]
+		},
+		{
+			"name": "{{.App.Name}}",
+			"play": "deploy-app.yml",
+			"inventory": "ec2_web_{{.App.Name}}",
+			"app": "{{index .Apps 1}}",
+			"state": "deploying",
+			"actions": [{
+				"image":"{{.App.Image}}",
+				"params":"-v {{.App.Data}}:/home/nodejs-app -e VIRTUAL_HOST={{.App.Host}} --link {{(index .Apps 2).Name}}:db -d {{.App.Image}} {{.App.Start}}"
+			}]
+		},
+		{
+			"name": "proxy-nginx",
+			"play": "push-docker.yml",
+			"inventory": "*",
+			"state": "running",
+			"actions": [{
+				"image":"aminjam/tahr-proxynginx",
+				"params":"-v /var/run/docker.sock:/tmp/docker.sock -p 80:80 -d aminjam/tahr-proxynginx"
+			}]
+		}
+	]
+}

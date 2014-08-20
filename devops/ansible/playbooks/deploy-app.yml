@@ -1,0 +1,33 @@
+---
+- name: Deploy app in container
+  hosts: "{{ inventory }}"
+  vars:
+    app_path: "/tmp/app-{{ name }}-{{ lookup('password', '/tmp/random chars=digits') }}"
+  tasks:
+     # Fetch the code from github
+     - name: Ensure we got the App code
+       delegate_to: 127.0.0.1
+       git:
+         repo=ssh://git@{{ repo }}
+         dest={{ app_path }}
+         accept_hostkey=yes
+         key_file={{ sshKey }}
+         version={{ branch }}
+     - name: Make sure path exists
+       file: path={{ path }} state=directory
+     - name: Sync files to remote location
+       sudo: yes
+       synchronize: src="{{ app_path }}/" dest="{{ path }}/"
+     - name: Docker pull image
+       shell: docker pull {{ image }}
+     - name: Docker stop container
+       shell: docker stop {{ name }}
+       ignore_errors: yes
+     - name: Docker remove container
+       shell: docker rm {{ name }}
+       ignore_errors: yes
+     - name: Docker run container
+       shell: "docker run --name {{ name }} {{ params }}"
+     - name: Remove local Files
+       delegate_to: 127.0.0.1
+       shell: rm -rf {{ app_path }} && rm /tmp/random
