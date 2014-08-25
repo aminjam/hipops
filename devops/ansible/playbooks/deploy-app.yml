@@ -14,10 +14,15 @@
          key_file={{ sshKey }}
          version={{ branch }}
      - name: Make sure path exists
+       sudo: yes
        file: path={{ path }} state=directory
      - name: Sync files to remote location
        sudo: yes
        synchronize: src="{{ app_path }}/" dest="{{ path }}/"
+     - name: Copy run script if customized
+       sudo: yes
+       copy: src={{ runSource }} dest={{ runDest }} mode=744
+       when: runSource != "NA"
      - name: Docker pull image
        shell: docker pull {{ image }}
      - name: Docker stop container

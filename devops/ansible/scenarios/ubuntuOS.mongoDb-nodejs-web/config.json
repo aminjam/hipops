@@ -17,7 +17,7 @@
 			"data": "/data/{{.Id}}/nodejs/nodejsA-{{.Id}}-{{.Env}}",
 			"image":"aminjam/tahr-consul-nodejs",
 			"ports": [3001],
-			"start": "/start.sh app.js",
+			"run": "/run.sh app.js",
       "sshKey": "/Users/cool/.ssh/id_rsa"
 		},
 		{
@@ -26,7 +26,7 @@
 			"image":"aminjam/tahr-consul-mongodb",
 			"ports": [27017],
 			"data":"/data/{{.Id}}/mongodb/mongodbA-{{.Id}}-{{.Env}}",
-			"start":"/start.sh"
+			"run":"/run.sh"
 		}
 	],
 	"servers":[
@@ -56,7 +56,7 @@
 			"state": "deploying",
 			"actions": [{
 				"image":"{{.App.Image}}",
-				"params":"-v {{.App.Data}}:/home/nodejs-app -e VIRTUAL_HOST={{.App.Host}} --link {{(index .Apps 2).Name}}:db -d {{.App.Image}} {{.App.Start}}"
+				"params":"-v {{.App.Data}}:/home/nodejs-app -e VIRTUAL_HOST={{.App.Host}} --link {{(index .Apps 2).Name}}:db -d {{.App.Image}} {{.App.Run}}"
 			}]
 		},
 		{

@@ -10,10 +10,10 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	"reflect"
 	"regexp"
 	"strings"
 	"text/template"
+	"path/filepath"
 )
 
 type Configuration struct {
@@ -32,7 +32,9 @@ type App struct {
 	Name   string
 	Repo   string
 	Ports  []int
-	Start  string
+	Run  string
+	RunCustom string
+	Server string
 	SshKey string
 	Type   string
 }
@@ -72,18 +74,24 @@ func main() {
 	err = json.Unmarshal(config, &c)
 	check(err)
 	for k, v := range c.Apps {
-		c.Apps[k].Name = parse(v.Name, c, "")
-		c.Apps[k].Data = parse(v.Data, c, "")
+		c.Apps[k].Name = parse(v.Name + "-{{.Id}}-{{.Env}}", c, "")
+		c.Apps[k].Data = parse(v.Data + v.Name, c, "")
 	}
 	for _, v := range c.Playbooks {
 		//fmt.Println(v.App)
 		//fmt.Println(parse(v.Name, c, v.App))
 		//fmt.Println(parse(v.Actions[0].Params, c, v.App))
+		runSource, runDest := "NA","NA"
+		if (parse("{{.App.RunCustom}}", c, v.App) != ""){
+			dir := filepath.Dir(*flConfigFile)
+			runSource,_ =  filepath.Abs(dir + "/" + parse("{{.App.RunCustom}}", c, v.App))
+			runDest = strings.SplitAfter(parse("{{.App.Run}}", c, v.App)," ")[0]
+		}
 		RunCmd("ansible-playbook",
 			fmt.Sprintf("%s%s", *flPlaybooks, v.Play),
 			"-i", *flHosts,
 			"--private-key", *flPrivateKey,
-			"-e", fmt.Sprintf("inventory=%s name=%s image=%s state=%s params=\"%s\" repo=%s sshKey=%s branch=%s path=%s",
+			"-e", fmt.Sprintf("inventory=%s name=%s image=%s state=%s params=\"%s\" repo=%s sshKey=%s branch=%s path=%s runSource=%s runDest=%s",
 				parse(v.Inventory, c, v.App),
 				parse(v.Name, c, v.App),
 				parse(v.Actions[0].Image, c, v.App),
@@ -93,6 +101,7 @@ func main() {
 				parse("{{.App.SshKey}}", c, v.App),
 				parse("{{.App.Branch}}", c, v.App),
 				parse("{{.App.Data}}", c, v.App),
+				runSource,runDest,
 			),
 			"-vvvvv",
 		)
@@ -118,14 +127,7 @@ func parse(input string, base interface{}, app string) string {
 	t.Execute(buf, base)
 	return buf.String()
 }
-func evaluate(obj Configuration) {
-	s := reflect.ValueOf(&obj).Elem()
-	typeOfT := s.Type()
-	for i := 0; i < s.NumField(); i++ {
-		f := s.Field(i)
-		fmt.Printf("%d: %s %s =  %v\n", i, typeOfT.Field(i).Name, f.Type(), f.Interface())
-	}
-}
+
 func check(err error) {
 	if err != nil {
 		log.Fatalf("Error: %s", err)
