@@ -46,7 +46,7 @@ type Server struct {
 }
 type Playbook struct {
 	Actions   []DockerAction
-	App       string
+	Apps      []string
 	Inventory string
 	Name      string
 	Play      string
@@ -77,34 +77,54 @@ func main() {
 		c.Apps[k].Name = parse(v.Name + "-{{.Id}}-{{.Env}}", c, "")
 		c.Apps[k].Data = parse(v.Data + v.Name, c, "")
 	}
-	for _, v := range c.Playbooks {
+	for _, p := range c.Playbooks {
 		//fmt.Println(v.App)
 		//fmt.Println(parse(v.Name, c, v.App))
 		//fmt.Println(parse(v.Actions[0].Params, c, v.App))
-		runSource, runDest := "NA","NA"
-		if (parse("{{.App.RunCustom}}", c, v.App) != ""){
-			dir := filepath.Dir(*flConfigFile)
-			runSource,_ =  filepath.Abs(dir + "/" + parse("{{.App.RunCustom}}", c, v.App))
-			runDest = strings.SplitAfter(parse("{{.App.Run}}", c, v.App)," ")[0]
-		}
-		RunCmd("ansible-playbook",
-			fmt.Sprintf("%s%s", *flPlaybooks, v.Play),
-			"-i", *flHosts,
-			"--private-key", *flPrivateKey,
-			"-e", fmt.Sprintf("inventory=%s name=%s image=%s state=%s params=\"%s\" repo=%s sshKey=%s branch=%s path=%s runSource=%s runDest=%s",
-				parse(v.Inventory, c, v.App),
-				parse(v.Name, c, v.App),
-				parse(v.Actions[0].Image, c, v.App),
-				v.State,
-				parse(v.Actions[0].Params, c, v.App),
-				parse("{{.App.Repo}}", c, v.App),
-				parse("{{.App.SshKey}}", c, v.App),
-				parse("{{.App.Branch}}", c, v.App),
-				parse("{{.App.Data}}", c, v.App),
-				runSource,runDest,
-			),
-			"-vvvvv",
-		)
+		if p.State == "deploying" {
+				for _,app := range p.Apps {
+					fmt.Println(app);
+					runSource, runDest := "NA","NA"
+					if (parse("{{.App.RunCustom}}", c, app) != ""){
+						dir := filepath.Dir(*flConfigFile)
+						runSource,_ =  filepath.Abs(dir + "/" + parse("{{.App.RunCustom}}", c, app))
+						runDest = strings.SplitAfter(parse("{{.App.Run}}", c, app)," ")[0]
+					}
+					RunCmd("ansible-playbook",
+						fmt.Sprintf("%s%s", *flPlaybooks, p.Play),
+						"-i", *flHosts,
+						"-u ubuntu",
+						"--private-key", *flPrivateKey,
+						"-e", fmt.Sprintf("inventory=%s name=%s image=%s state=%s params=\"%s\" repo=%s sshKey=%s branch=%s path=%s runSource=%s runDest=%s",
+							parse(p.Inventory, c, app),
+							parse(p.Name, c, app),
+							parse(p.Actions[0].Image, c, app),
+							p.State,
+							parse(p.Actions[0].Params, c, app),
+							parse("{{.App.Repo}}", c, app),
+							parse("{{.App.SshKey}}", c, app),
+							parse("{{.App.Branch}}", c, app),
+							parse("{{.App.Data}}", c, app),
+							runSource,runDest,
+						),
+						"-vvvvv",
+					)
+				}
+			} else {
+				RunCmd("ansible-playbook",
+					fmt.Sprintf("%s%s", *flPlaybooks, p.Play),
+					"-i", *flHosts,
+					"-u ubuntu",
+					"--private-key", *flPrivateKey,
+					"-e", fmt.Sprintf("inventory=%s name=%s image=%s state=%s params=\"%s\"",
+						parse(p.Inventory, c, ""),
+						parse(p.Name, c, ""),
+						parse(p.Actions[0].Image, c, ""),
+						p.State,
+						parse(p.Actions[0].Params, c, ""),
+					),
+				)
+			}
 	}
 
 	fmt.Println(flPlaybooks)

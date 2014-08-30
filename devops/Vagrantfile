@@ -25,7 +25,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.provision "shell", inline: $script
 
   config.vm.provider :virtualbox do |p|
-     p.customize ['modifyvm', :id, '--memory', '256', '--ioapic', 'on']
+     p.customize ['modifyvm', :id, '--memory', '512', '--ioapic', 'on']
   end
 
   config.vm.define "n1" do |n1|

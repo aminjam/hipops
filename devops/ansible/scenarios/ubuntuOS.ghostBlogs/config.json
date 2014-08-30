@@ -1,5 +1,5 @@
 {
-	"id": "blogs",
+	"id": "personal",
 	"env": "prod",
 	"apps":[
 		{
@@ -12,7 +12,6 @@
 			"image":"aminjam/nodejs",
 			"ports": [3001],
 			"run": "/run.sh",
-			"server": "index.js",
       "sshKey": "/Users/ajamali/.ssh/id_rsa"
 		},
 		{
@@ -25,7 +24,18 @@
 			"image":"aminjam/nodejs",
 			"ports": [3001],
 			"run": "/run.sh",
-			"server": "index.js",
+			"sshKey": "/Users/ajamali/.ssh/id_rsa"
+		},
+		{
+			"name": "aminjam.com",
+			"type": "static",
+			"branch": "master",
+			"repo": "github.com/aminjam/aminjam.com.git",
+			"host": "aminjam.com",
+			"data": "/data/{{.Id}}/static/",
+			"image":"aminjam/nginx-static",
+			"ports": [80,443],
+			"run": "/run.sh",
 			"sshKey": "/Users/ajamali/.ssh/id_rsa"
 		}
 	],
@@ -40,12 +50,33 @@
 		{
 			"name": "{{.App.Name}}",
 			"play": "deploy-app.yml",
-			"inventory": "ec2_web-personal",
-			"app": "{{index .Apps 0}}",
+			"inventory": "tag_Name_personal",
+			"apps": ["{{index .Apps 0}}","{{index .Apps 1}}"],
 			"state": "deploying",
 			"actions": [{
 				"image":"{{.App.Image}}",
-				"params":"-v {{.App.Data}}:/home/app -e SERVER_FILE={{.App.Server}} -e VIRTUAL_HOST={{.App.Host}} -d {{.App.Image}} {{.App.Run}}"
+				"params":"-v {{.App.Data}}:/home/app -e VIRTUAL_HOST={{.App.Host}} -d {{.App.Image}} {{.App.Run}}"
+			}]
+		},
+		{
+			"name": "nginx-proxy",
+			"play": "push-docker.yml",
+			"inventory": "*",
+			"state": "running",
+			"actions": [{
+				"image":"aminjam/nginx-proxy",
+				"params":"-v /var/run/docker.sock:/tmp/docker.sock -p 80:80 -d aminjam/nginx-proxy"
+			}]
+		},
+		{
+			"name": "{{.App.Name}}",
+			"play": "deploy-app.yml",
+			"inventory": "tag_Name_personal",
+			"apps": ["{{index .Apps 2}}"],
+			"state": "deploying",
+			"actions": [{
+				"image":"{{.App.Image}}",
+				"params":"-v {{.App.Data}}:/home/app -e VIRTUAL_HOST={{.App.Host}} -d {{.App.Image}}"
 			}]
 		}
 	]
