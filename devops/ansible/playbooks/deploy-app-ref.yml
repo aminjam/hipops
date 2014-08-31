@@ -1,0 +1,30 @@
+---
+- name: Deploy app in container (with git reference)
+  hosts: "{{ inventory }}"
+  tasks:
+     # Fetch the code from github
+     - name: Make sure path exists
+       sudo: yes
+       file: path={{ path }} state=directory
+     - name: Ensure we got the App code
+       sudo: yes
+       git:
+         repo=ssh://git@{{ repo }}
+         dest={{ path }}
+         accept_hostkey=yes
+         key_file={{ sshKey }}
+         version={{ branch }}
+     - name: Copy run script if customized
+       sudo: yes
+       copy: src={{ runSource }} dest={{ runDest }} mode=744
+       when: runSource != "NA"
+     - name: Docker pull image
+       shell: docker pull {{ image }}
+     - name: Docker stop container
+       shell: docker stop {{ name }}
+       ignore_errors: yes
+     - name: Docker remove container
+       shell: docker rm {{ name }}
+       ignore_errors: yes
+     - name: Docker run container
+       shell: "docker run --name {{ name }} {{ params }}"

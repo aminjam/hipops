@@ -12,7 +12,7 @@
 			"image":"aminjam/nodejs",
 			"ports": [3001],
 			"run": "/run.sh",
-      "sshKey": "/Users/ajamali/.ssh/id_rsa"
+      "sshKey": "/home/ubuntu/.ssh/id_rsa"
 		},
 		{
 			"name": "health.lifepoints.net",
@@ -24,7 +24,19 @@
 			"image":"aminjam/nodejs",
 			"ports": [3001],
 			"run": "/run.sh",
-			"sshKey": "/Users/ajamali/.ssh/id_rsa"
+			"sshKey": "/home/ubuntu/.ssh/id_rsa"
+		},
+		{
+			"name": "hoboken.lifepoints.net",
+			"type": "nodejs",
+			"branch": "master",
+			"repo": "bitbucket.org/aminjam/hoboken.lifepoints.net.git",
+			"host": "hoboken.lifepoints.net",
+			"data": "/data/{{.Id}}/nodejs/",
+			"image":"aminjam/nodejs",
+			"ports": [3001],
+			"run": "/run.sh",
+			"sshKey": "/home/ubuntu/.ssh/id_rsa"
 		},
 		{
 			"name": "aminjam.com",
@@ -49,13 +61,24 @@
 	"playbooks":[
 		{
 			"name": "{{.App.Name}}",
-			"play": "deploy-app.yml",
+			"play": "deploy-app-ref.yml",
 			"inventory": "tag_Name_personal",
-			"apps": ["{{index .Apps 0}}","{{index .Apps 1}}"],
+			"apps": ["{{index .Apps 0}}","{{index .Apps 1}}","{{index .Apps 2}}"],
 			"state": "deploying",
 			"actions": [{
 				"image":"{{.App.Image}}",
 				"params":"-v {{.App.Data}}:/home/app -e VIRTUAL_HOST={{.App.Host}} -d {{.App.Image}} {{.App.Run}}"
+			}]
+		},
+		{
+			"name": "{{.App.Name}}",
+			"play": "deploy-app.yml",
+			"inventory": "tag_Name_personal",
+			"apps": ["{{index .Apps 3}}"],
+			"state": "deploying",
+			"actions": [{
+				"image":"{{.App.Image}}",
+				"params":"-v {{.App.Data}}:/home/app -e VIRTUAL_HOST={{.App.Host}} -d {{.App.Image}}"
 			}]
 		},
 		{
@@ -66,17 +89,6 @@
 			"actions": [{
 				"image":"aminjam/nginx-proxy",
 				"params":"-v /var/run/docker.sock:/tmp/docker.sock -p 80:80 -d aminjam/nginx-proxy"
-			}]
-		},
-		{
-			"name": "{{.App.Name}}",
-			"play": "deploy-app.yml",
-			"inventory": "tag_Name_personal",
-			"apps": ["{{index .Apps 2}}"],
-			"state": "deploying",
-			"actions": [{
-				"image":"{{.App.Image}}",
-				"params":"-v {{.App.Data}}:/home/app -e VIRTUAL_HOST={{.App.Host}} -d {{.App.Image}}"
 			}]
 		}
 	]
