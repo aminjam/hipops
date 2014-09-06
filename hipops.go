@@ -32,7 +32,8 @@ type App struct {
 	Name   string
 	Repo   string
 	Ports  []int
-	Run  string
+	Dir   string
+	Run  	 string
 	RunCustom string
 	Server string
 	SshKey string
@@ -59,9 +60,9 @@ type DockerAction struct {
 
 func main() {
 	var (
-		flHosts      = flag.String([]string{"h", "-hosts"}, "", "Inventory Hosts Target e.g. local,aws")
+		flHosts      = flag.String([]string{"h", "-hosts"}, "./hosts/local", "Inventory Hosts Target e.g. local,aws")
 		flConfigFile = flag.String([]string{"c", "-config"}, "./config.json", ".json configuration")
-		flPlaybooks  = flag.String([]string{"p", "-playbook-path"}, "../../playbooks/", "Playbooks Path")
+		flPlaybooks  = flag.String([]string{"p", "-playbook-path"}, "../../ansible-playbooks/", "Playbooks Path")
 		flPrivateKey = flag.String([]string{"k", "-private-key"}, "", "SSH Private Key")
 	)
 	flag.Parse()
@@ -78,10 +79,7 @@ func main() {
 		c.Apps[k].Data = parse(v.Data + v.Name, c, "")
 	}
 	for _, p := range c.Playbooks {
-		//fmt.Println(v.App)
-		//fmt.Println(parse(v.Name, c, v.App))
-		//fmt.Println(parse(v.Actions[0].Params, c, v.App))
-		if p.State == "deploying" {
+			if len(p.Apps) != 0 {
 				for _,app := range p.Apps {
 					fmt.Println(app);
 					runSource, runDest := "NA","NA"
@@ -90,13 +88,15 @@ func main() {
 						runSource,_ =  filepath.Abs(dir + "/" + parse("{{.App.RunCustom}}", c, app))
 						runDest = strings.SplitAfter(parse("{{.App.Run}}", c, app)," ")[0]
 					}
+					//fmt.Println("PORT:" + parse(" -v {{.App.Data}}:/home/app -p 8002:{{index ((index .Apps 0).Ports) 0}} -d {{.App.Image}}", c, app));
+					//fmt.Println("PORT:" + parse(" -v {{.App.Data}}:/home/app -p 8002:{{index .App.Ports 1}} -d {{.App.Image}}", c, app));
 					RunCmd("ansible-playbook",
 						fmt.Sprintf("%s%s", *flPlaybooks, p.Play),
 						"-i", *flHosts,
 						"-u ubuntu",
 						"--private-key", *flPrivateKey,
-						"-e", fmt.Sprintf("inventory=%s name=%s image=%s state=%s params=\"%s\" repo=%s sshKey=%s branch=%s path=%s runSource=%s runDest=%s",
-							parse(p.Inventory, c, app),
+						"-e", fmt.Sprintf("inventory=%s name=%s image=%s state=%s params=\"%s\" repo=%s sshKey=%s branch=%s dir=%s path=%s runSource=%s runDest=%s",
+							p.Inventory,
 							parse(p.Name, c, app),
 							parse(p.Actions[0].Image, c, app),
 							p.State,
@@ -104,10 +104,11 @@ func main() {
 							parse("{{.App.Repo}}", c, app),
 							parse("{{.App.SshKey}}", c, app),
 							parse("{{.App.Branch}}", c, app),
+							parse("{{.App.Dir}}",c,app),
 							parse("{{.App.Data}}", c, app),
 							runSource,runDest,
 						),
-						"-vvvvv",
+						"-vvvv",
 					)
 				}
 			} else {
@@ -117,24 +118,24 @@ func main() {
 					"-u ubuntu",
 					"--private-key", *flPrivateKey,
 					"-e", fmt.Sprintf("inventory=%s name=%s image=%s state=%s params=\"%s\"",
-						parse(p.Inventory, c, ""),
+						p.Inventory,
 						parse(p.Name, c, ""),
 						parse(p.Actions[0].Image, c, ""),
 						p.State,
 						parse(p.Actions[0].Params, c, ""),
 					),
+					"-vvvv",
 				)
 			}
 	}
-
-	fmt.Println(flPlaybooks)
-	RunCmd("ls", "-l")
 }
 func format(input string, app string) string {
 	app = strings.Replace(app, "{{", "(", -1)
 	app = strings.Replace(app, "}}", ")", -1)
 	var re = regexp.MustCompile(`({{.App(.&}})*)`)
 	input = re.ReplaceAllString(input, fmt.Sprintf("{{%s${2}", app))
+	re = regexp.MustCompile(`({{index .App.Ports(.&}})*)`)
+	input = re.ReplaceAllString(input, fmt.Sprintf("{{index (%s.Ports)${2}", app))
 	return input
 }
 func parse(input string, base interface{}, app string) string {
