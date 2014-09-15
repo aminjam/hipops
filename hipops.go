@@ -10,48 +10,35 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"text/template"
-	"path/filepath"
 )
 
 type Configuration struct {
-	Apps      []App
-	Env       string
-	Id        string
-	Playbooks []Playbook
-	Servers   []Server
+	Env, Id, Description string
+	Apps                 []App
+	Playbooks            []Playbook
+	Servers              []Server
 }
 type App struct {
-	Branch string
-	Config string
-	Data   string
-	Host   string
-	Image  string
-	Name   string
-	Repo   string
-	Ports  []int
-	Dir   string
-	Run  	 string
-	RunCustom string
-	Server string
-	SshKey string
-	Type   string
+	Branch, Config, Data,
+	Host, Image, Name,
+	Repo, Dir, Run, RunCustom,
+	Server, SshKey, Type string
+	Ports []int
 }
 
 type Server struct {
-	Apps []string
-	Role string
-	Type string
+	Role, Type string
+	Apps       []string
 }
 type Playbook struct {
-	Actions   []DockerAction
-	Apps      []string
+	Name, Play, State,
 	Inventory string
-	Name      string
-	Play      string
-	State     string
+	Actions []DockerAction
+	Apps    []string
 }
 type DockerAction struct {
 	Image  string
@@ -64,10 +51,14 @@ func main() {
 		flConfigFile = flag.String([]string{"c", "-config"}, "./config.json", ".json configuration")
 		flPlaybooks  = flag.String([]string{"p", "-playbook-path"}, "../../ansible-playbooks/", "Playbooks Path")
 		flPrivateKey = flag.String([]string{"k", "-private-key"}, "", "SSH Private Key")
+		flDebug      = flag.String([]string{"d", "-debug"}, "v", "debug flag e.g. vvvv")
 	)
 	flag.Parse()
 	if *flHosts == "" {
 		log.Fatal("Usage: [-h <Inventory Hosts Target>][-k <SSH private key>]")
+	}
+	if *flDebug != "" {
+		*flDebug = "-" + strings.TrimPrefix(*flDebug, "-")
 	}
 	config, err := ioutil.ReadFile(*flConfigFile)
 	check(err)
@@ -75,58 +66,58 @@ func main() {
 	err = json.Unmarshal(config, &c)
 	check(err)
 	for k, v := range c.Apps {
-		c.Apps[k].Name = parse(v.Name + "-{{.Id}}-{{.Env}}", c, "")
-		c.Apps[k].Data = parse(v.Data + v.Name, c, "")
+		c.Apps[k].Name = parse(v.Name+"-{{.Id}}-{{.Env}}", c, "")
+		c.Apps[k].Data = parse(v.Data+v.Name, c, "")
 	}
 	for _, p := range c.Playbooks {
-			if len(p.Apps) != 0 {
-				for _,app := range p.Apps {
-					fmt.Println(app);
-					runSource, runDest := "NA","NA"
-					if (parse("{{.App.RunCustom}}", c, app) != ""){
-						dir := filepath.Dir(*flConfigFile)
-						runSource,_ =  filepath.Abs(dir + "/" + parse("{{.App.RunCustom}}", c, app))
-						runDest = strings.SplitAfter(parse("{{.App.Run}}", c, app)," ")[0]
-					}
-					//fmt.Println("PORT:" + parse(" -v {{.App.Data}}:/home/app -p 8002:{{index ((index .Apps 0).Ports) 0}} -d {{.App.Image}}", c, app));
-					//fmt.Println("PORT:" + parse(" -v {{.App.Data}}:/home/app -p 8002:{{index .App.Ports 1}} -d {{.App.Image}}", c, app));
-					RunCmd("ansible-playbook",
-						fmt.Sprintf("%s%s", *flPlaybooks, p.Play),
-						"-i", *flHosts,
-						"-u ubuntu",
-						"--private-key", *flPrivateKey,
-						"-e", fmt.Sprintf("inventory=%s name=%s image=%s state=%s params=\"%s\" repo=%s sshKey=%s branch=%s dir=%s path=%s runSource=%s runDest=%s",
-							p.Inventory,
-							parse(p.Name, c, app),
-							parse(p.Actions[0].Image, c, app),
-							p.State,
-							parse(p.Actions[0].Params, c, app),
-							parse("{{.App.Repo}}", c, app),
-							parse("{{.App.SshKey}}", c, app),
-							parse("{{.App.Branch}}", c, app),
-							parse("{{.App.Dir}}",c,app),
-							parse("{{.App.Data}}", c, app),
-							runSource,runDest,
-						),
-						"-vvvv",
-					)
+		if len(p.Apps) != 0 {
+			for _, app := range p.Apps {
+				fmt.Println(app)
+				runSource, runDest := "NA", "NA"
+				if parse("{{.App.RunCustom}}", c, app) != "" {
+					dir := filepath.Dir(*flConfigFile)
+					runSource, _ = filepath.Abs(dir + "/" + parse("{{.App.RunCustom}}", c, app))
+					runDest = strings.SplitAfter(parse("{{.App.Run}}", c, app), " ")[0]
 				}
-			} else {
+				//fmt.Println("PORT:" + parse(" -v {{.App.Data}}:/home/app -p 8002:{{index ((index .Apps 0).Ports) 0}} -d {{.App.Image}}", c, app));
+				//fmt.Println("PORT:" + parse(" -v {{.App.Data}}:/home/app -p 8002:{{index .App.Ports 1}} -d {{.App.Image}}", c, app));
 				RunCmd("ansible-playbook",
 					fmt.Sprintf("%s%s", *flPlaybooks, p.Play),
 					"-i", *flHosts,
 					"-u ubuntu",
 					"--private-key", *flPrivateKey,
-					"-e", fmt.Sprintf("inventory=%s name=%s image=%s state=%s params=\"%s\"",
+					"-e", fmt.Sprintf("inventory=%s name=%s image=%s state=%s params=\"%s\" repo=%s sshKey=%s branch=%s dir=%s path=%s runSource=%s runDest=%s",
 						p.Inventory,
-						parse(p.Name, c, ""),
-						parse(p.Actions[0].Image, c, ""),
+						parse(p.Name, c, app),
+						parse(p.Actions[0].Image, c, app),
 						p.State,
-						parse(p.Actions[0].Params, c, ""),
+						parse(p.Actions[0].Params, c, app),
+						parse("{{.App.Repo}}", c, app),
+						parse("{{.App.SshKey}}", c, app),
+						parse("{{.App.Branch}}", c, app),
+						parse("{{.App.Dir}}", c, app),
+						parse("{{.App.Data}}", c, app),
+						runSource, runDest,
 					),
-					"-vvvv",
+					*flDebug,
 				)
 			}
+		} else {
+			RunCmd("ansible-playbook",
+				fmt.Sprintf("%s%s", *flPlaybooks, p.Play),
+				"-i", *flHosts,
+				"-u ubuntu",
+				"--private-key", *flPrivateKey,
+				"-e", fmt.Sprintf("inventory=%s name=%s image=%s state=%s params=\"%s\" runSource=NA",
+					p.Inventory,
+					parse(p.Name, c, ""),
+					parse(p.Actions[0].Image, c, ""),
+					p.State,
+					parse(p.Actions[0].Params, c, ""),
+				),
+				*flDebug,
+			)
+		}
 	}
 }
 func format(input string, app string) string {

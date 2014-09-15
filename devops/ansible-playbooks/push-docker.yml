@@ -7,6 +7,10 @@
       ignore_errors: yes
       register: isRunning
     - debug: msg="isRunning is {{ isRunning }}"
+    - name: Copy run script if customized
+      sudo: yes
+      copy: src={{ runSource }} dest={{ runDest }} mode=744
+      when: runSource != "NA"
     - name: Docker pull image
       shell: docker pull {{ image }}
       when: isRunning|failed or state!="running" or isRunning.stdout=="false"
