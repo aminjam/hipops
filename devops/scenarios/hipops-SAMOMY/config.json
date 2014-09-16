@@ -15,6 +15,7 @@
     "branch": "master",
     "repo": "github.com/aminjam/hipops-SAMOMY-mysql.git",
     "data": "/data/{{.Id}}/db/",
+    "dbName":"sailsjs_hello_api",
     "image": "tutum/mysql",
     "run": "/run.sh",
     "runCustom": "../../docker/mysql/run.sh",
@@ -66,7 +67,7 @@
     "state": "running",
     "actions": [{
       "image": "{{.App.Image}}",
-      "params": "-v {{.App.Data}}:/var/lib/mysql -v {{.App.Run}}:{{.App.Run}} -p 9991:{{index .App.Ports 0}} -e MYSQL_USER=admin -e MYSQL_PASS=w7uyzyR4vDcdv6PHQBj8 -d {{.App.Image}} {{.App.Run}} sailsjs_hello_api"
+      "params": "-v {{.App.Data}}:/var/lib/mysql -v {{.App.Run}}:{{.App.Run}} -p 9991:{{index .App.Ports 0}} -e MYSQL_USER=admin -e MYSQL_PASS=w7uyzyR4vDcdv6PHQBj8 -d {{.App.Image}} {{.App.Run}} {{.App.DbName}}"
     }]
   }, {
     "name": "{{.App.Name}}",
@@ -76,7 +77,7 @@
     "state": "deploying",
     "actions": [{
       "image": "{{.App.Image}}",
-      "params": "-v {{.App.Data}}:/home/app -p 9992:3001 -e VIRTUAL_HOST={{.App.Host}} --link {{(index .Apps 0).Name}}:mongo --link {{(index .Apps 1).Name}}:mysql -d {{.App.Image}} {{.App.Run}}"
+      "params": "-v {{.App.Data}}:/home/app -p 9992:3001 -e VIRTUAL_HOST={{.App.Host}} -e NODE_ENV=production --link {{(index .Apps 0).Name}}:mongo --link {{(index .Apps 1).Name}}:mysql -d {{.App.Image}} {{.App.Run}}"
     }]
   }, {
     "name": "{{.App.Name}}",

@@ -23,7 +23,7 @@ type Configuration struct {
 	Servers              []Server
 }
 type App struct {
-	Branch, Config, Data,
+	Branch, Config, Data, DbName,
 	Host, Image, Name,
 	Repo, Dir, Run, RunCustom,
 	Server, SshKey, Type string
