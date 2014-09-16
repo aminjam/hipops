@@ -102,4 +102,7 @@ fi
 mysqladmin -uroot shutdown
 
 echo "=> Done!"
+
+/import_sql.sh $MYSQL_USER $MYSQL_PASS /var/lib/mysql/mysql.dump.sql
+
 exec mysqld_safe

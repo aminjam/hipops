@@ -108,7 +108,7 @@ func main() {
 				"-i", *flHosts,
 				"-u ubuntu",
 				"--private-key", *flPrivateKey,
-				"-e", fmt.Sprintf("inventory=%s name=%s image=%s state=%s params=\"%s\" runSource=NA",
+				"-e", fmt.Sprintf("inventory=%s name=%s image=%s state=%s params=\"%s\" repo='' sshKey='' branch='' dir='' path='' runSource=NA",
 					p.Inventory,
 					parse(p.Name, c, ""),
 					parse(p.Actions[0].Image, c, ""),

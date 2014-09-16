@@ -12,11 +12,14 @@
   }, {
     "name": "mysql-db",
     "type": "db",
+    "branch": "master",
+    "repo": "github.com/aminjam/hipops-SAMOMY-mysql.git",
     "data": "/data/{{.Id}}/db/",
     "image": "tutum/mysql",
-    "run":"/run.sh",
-    "runCustom":"../../docker/mysql/run.sh",
-    "ports": [3306]
+    "run": "/run.sh",
+    "runCustom": "../../docker/mysql/run.sh",
+    "ports": [3306],
+    "sshKey": "/Users/ajamali/.ssh/id_rsa"
   }, {
     "name": "backend-api",
     "type": "nodejs",

@@ -1,12 +1,33 @@
 ---
 - name:  Push docker container
   hosts: "{{ inventory }}"
+  vars:
+    app_path: "/tmp/app-{{ name }}-{{ lookup('password', '/tmp/random chars=digits') }}"
   tasks:
     - name: Docker container state
       shell: "docker inspect -f {{ '{{.State.Running}}' }} {{ name }}"
       ignore_errors: yes
       register: isRunning
     - debug: msg="isRunning is {{ isRunning }}"
+    - debug: msg="its {{ repo }}"
+    # Fetch the code from github
+    - name: Ensure we got the App code
+      delegate_to: 127.0.0.1
+      git:
+        repo=ssh://git@{{ repo }}
+        dest={{ app_path }}
+        accept_hostkey=yes
+        key_file={{ sshKey }}
+        version={{ branch }}
+      when: repo != ""
+    - name: Make sure path exists
+      sudo: yes
+      file: path={{ path }} state=directory
+      when: path != ""
+    - name: Sync files to remote location
+      sudo: yes
+      synchronize: src="{{ app_path }}/{{ dir }}" dest="{{ path }}/"
+      when: repo != ""
     - name: Copy run script if customized
       sudo: yes
       copy: src={{ runSource }} dest={{ runDest }} mode=744
