@@ -16,7 +16,7 @@
     "repo": "github.com/aminjam/hipops-SAMOMY-mysql.git",
     "data": "/data/{{.Id}}/db/",
     "dbName":"sailsjs_hello_api",
-    "image": "tutum/mysql",
+    "image": "tutum/mysql:5.6",
     "run": "/run.sh",
     "runCustom": "../../docker/mysql/run.sh",
     "ports": [3306],

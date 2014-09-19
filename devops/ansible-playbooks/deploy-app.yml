@@ -18,7 +18,7 @@
        file: path={{ path }} state=directory
      - name: Sync files to remote location
        sudo: yes
-       synchronize: src="{{ app_path }}/{{ dir }}" dest="{{ path }}/"
+       synchronize: src="{{ app_path }}/{{ dir }}" dest="{{ path }}/" delete=yes recursive=yes
      - name: Copy run script if customized
        sudo: yes
        copy: src={{ runSource }} dest={{ runDest }} mode=744
