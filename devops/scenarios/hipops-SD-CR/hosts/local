@@ -1,0 +1,7 @@
+[tag_SD-Role_CONSUL-SERVER-00]
+172.20.21.10 ansible_connection=ssh
+
+[tag_SD-Role_CONSUL-SERVER]
+172.20.21.10 ansible_connection=ssh
+172.20.21.11 ansible_connection=ssh
+172.20.21.12 ansible_connection=ssh

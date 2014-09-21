@@ -91,7 +91,7 @@ func main() {
 						parse(p.Name, c, app),
 						parse(p.Actions[0].Image, c, app),
 						p.State,
-						parse(p.Actions[0].Params, c, app),
+						configureParams(parse(configureParams(p.Actions[0].Params, true), c, app), false),
 						parse("{{.App.Repo}}", c, app),
 						parse("{{.App.SshKey}}", c, app),
 						parse("{{.App.Branch}}", c, app),
@@ -119,6 +119,22 @@ func main() {
 			)
 		}
 	}
+}
+func configureParams(input string, set bool) string {
+	ansible_ip := "{{ ansible_eth1.ipv4.address }}"
+	ansible_ip_TEMP := "@ANSIBLE_IP"
+	temp := ""
+	if set == true {
+		temp = strings.Replace(input, ansible_ip, ansible_ip_TEMP, -1)
+	} else {
+		temp = strings.Replace(input, ansible_ip_TEMP, ansible_ip, -1)
+	}
+	//re := regexp.MustCompile("(ENV_&*)")
+	//fmt.Println("CONSUL_SERVER_00: " + os.Getenv("CONSUL_SERVER_00"))
+	//temp = re.ReplaceAllString(temp, "POP")
+	//fmt.Println("TEMP:" + temp)
+	return temp
+
 }
 func format(input string, app string) string {
 	app = strings.Replace(app, "{{", "(", -1)

@@ -1,0 +1,48 @@
+{
+  "id": "hipops-SD-CR",
+  "description": "service discovery with consul and registrator",
+  "env": "dev",
+  "apps": [{
+    "name": "consul",
+    "type": "sd",
+    "data": "/data/{{.Id}}/sd/",
+    "image": "progrium/consul",
+    "ports": [8300, 8301, 8302, 8400, 8500, 53]
+  }, {
+    "name": "registrator",
+    "type": "sd",
+    "data": "/data/{{.Id}}/sd/",
+    "image": "progrium/registrator"
+  }],
+  "playbooks": [{
+    "name": "{{.App.Name}}",
+    "play": "push-docker.yml",
+    "inventory": "tag_SD-Role_CONSUL-SERVER-00",
+    "apps": ["{{index .Apps 0}}"],
+    "state": "running",
+    "actions": [{
+      "image": "{{.App.Image}}",
+      "params": "-v {{.App.Data}}:/data -p {{ ansible_eth1.ipv4.address }}:8300:8300 -p {{ ansible_eth1.ipv4.address }}:8301:8301 -p {{ ansible_eth1.ipv4.address }}:8301:8301/udp -p {{ ansible_eth1.ipv4.address }}:8302:8302 -p {{ ansible_eth1.ipv4.address }}:8302:8302/udp -p {{ ansible_eth1.ipv4.address }}:8400:8400 -p {{ ansible_eth1.ipv4.address }}:8500:8500 -p {{ ansible_eth1.ipv4.address }}:8600:53 -d {{.App.Image}} -server -advertise {{ ansible_eth1.ipv4.address }} -bootstrap-expect 3"
+    }]
+  }, {
+    "name": "{{.App.Name}}",
+    "play": "push-docker.yml",
+    "inventory": "tag_SD-Role_CONSUL-SERVER",
+    "apps": ["{{index .Apps 0}}"],
+    "state": "running",
+    "actions": [{
+      "image": "{{.App.Image}}",
+      "params": "-v {{.App.Data}}:/data -p {{ ansible_eth1.ipv4.address }}:8300:8300 -p {{ ansible_eth1.ipv4.address }}:8301:8301 -p {{ ansible_eth1.ipv4.address }}:8301:8301/udp -p {{ ansible_eth1.ipv4.address }}:8302:8302 -p {{ ansible_eth1.ipv4.address }}:8302:8302/udp -p {{ ansible_eth1.ipv4.address }}:8400:8400 -p {{ ansible_eth1.ipv4.address }}:8500:8500 -p {{ ansible_eth1.ipv4.address }}:8600:53 -d {{.App.Image}} -server -advertise {{ ansible_eth1.ipv4.address }} -join 172.20.21.10"
+    }]
+  }, {
+    "name": "{{.App.Name}}",
+    "play": "push-docker.yml",
+    "inventory": "tag_SD-Role_CONSUL-SERVER",
+    "apps": ["{{index .Apps 1}}"],
+    "state": "running",
+    "actions": [{
+      "image": "{{.App.Image}}",
+      "params": "-v /var/run/docker.sock:/tmp/docker.sock -d {{.App.Image}} consul://{{ ansible_eth1.ipv4.address }}:8500"
+    }]
+  }]
+}

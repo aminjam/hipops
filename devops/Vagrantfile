@@ -28,9 +28,19 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
      p.customize ['modifyvm', :id, '--memory', '1024', '--ioapic', 'on']
   end
 
-  config.vm.define "n1" do |n1|
-      n1.vm.hostname = "n1"
-      n1.vm.network "private_network", ip: "172.20.21.10"
+  config.vm.define "n1" do |n|
+      n.vm.hostname = "n1"
+      n.vm.network "private_network", ip: "172.20.21.10"
+  end
+
+  config.vm.define "n2" do |n|
+      n.vm.hostname = "n2"
+      n.vm.network "private_network", ip: "172.20.21.11"
+  end
+
+  config.vm.define "n3" do |n|
+      n.vm.hostname = "n3"
+      n.vm.network "private_network", ip: "172.20.21.12"
   end
 
 end
