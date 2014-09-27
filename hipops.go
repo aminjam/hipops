@@ -45,12 +45,28 @@ type DockerAction struct {
 	Params string
 }
 
+type EnvironmentMap func(string) string
+type envMap map[string]string
+
+func (s *envMap) Get(n string) string {
+	n = strings.Replace(n, "$", "", 1)
+	return (*s)[n]
+}
+
+func expandEnv(s string, m EnvironmentMap) string {
+	var pat = regexp.MustCompile(`\$[A-Z]+`)
+	return string(pat.ReplaceAllFunc([]byte(s), func(bs []byte) []byte {
+		return []byte(m(string(bs)))
+	}))
+}
+
 func main() {
 	var (
 		flHosts      = flag.String([]string{"h", "-hosts"}, "./hosts/local", "Inventory Hosts Target e.g. local,aws")
 		flConfigFile = flag.String([]string{"c", "-config"}, "./config.json", ".json configuration")
 		flPlaybooks  = flag.String([]string{"p", "-playbook-path"}, "../../ansible-playbooks/", "Playbooks Path")
-		flPrivateKey = flag.String([]string{"k", "-private-key"}, "", "SSH Private Key")
+		flPrivateKey = flag.String([]string{"k", "-host-key"}, "", "SSH Host Private Key")
+		flGitKey     = flag.String([]string{"g", "-git-key"}, "", "SSH Git Key for Repo")
 		flDebug      = flag.String([]string{"d", "-debug"}, "v", "debug flag e.g. vvvv")
 	)
 	flag.Parse()
@@ -60,6 +76,7 @@ func main() {
 	if *flDebug != "" {
 		*flDebug = "-" + strings.TrimPrefix(*flDebug, "-")
 	}
+
 	config, err := ioutil.ReadFile(*flConfigFile)
 	check(err)
 	var c Configuration
@@ -79,8 +96,10 @@ func main() {
 					runSource, _ = filepath.Abs(dir + "/" + parse("{{.App.RunCustom}}", c, app))
 					runDest = strings.SplitAfter(parse("{{.App.Run}}", c, app), " ")[0]
 				}
-				//fmt.Println("PORT:" + parse(" -v {{.App.Data}}:/home/app -p 8002:{{index ((index .Apps 0).Ports) 0}} -d {{.App.Image}}", c, app));
-				//fmt.Println("PORT:" + parse(" -v {{.App.Data}}:/home/app -p 8002:{{index .App.Ports 1}} -d {{.App.Image}}", c, app));
+				appGitKey := *flGitKey
+				if appGitKey == "" {
+					appGitKey = parse("{{.App.SshKey}}", c, app)
+				}
 				RunCmd("ansible-playbook",
 					fmt.Sprintf("%s%s", *flPlaybooks, p.Play),
 					"-i", *flHosts,
@@ -93,7 +112,7 @@ func main() {
 						p.State,
 						configureParams(parse(configureParams(p.Actions[0].Params, true), c, app), false),
 						parse("{{.App.Repo}}", c, app),
-						parse("{{.App.SshKey}}", c, app),
+						appGitKey,
 						parse("{{.App.Branch}}", c, app),
 						parse("{{.App.Dir}}", c, app),
 						parse("{{.App.Data}}", c, app),
@@ -126,13 +145,16 @@ func configureParams(input string, set bool) string {
 	temp := ""
 	if set == true {
 		temp = strings.Replace(input, ansible_ip, ansible_ip_TEMP, -1)
-	} else {
-		temp = strings.Replace(input, ansible_ip_TEMP, ansible_ip, -1)
+		return temp
 	}
-	//re := regexp.MustCompile("(ENV_&*)")
-	//fmt.Println("CONSUL_SERVER_00: " + os.Getenv("CONSUL_SERVER_00"))
-	//temp = re.ReplaceAllString(temp, "POP")
-	//fmt.Println("TEMP:" + temp)
+	temp = strings.Replace(input, ansible_ip_TEMP, ansible_ip, -1)
+	env := envMap{}
+	for _, v := range os.Environ() {
+		var a = strings.Split(v, "=")
+		env[a[0]] = a[1]
+	}
+
+	temp = expandEnv(temp, env.Get)
 	return temp
 
 }
@@ -169,7 +191,8 @@ func RunCmd(name string, arg ...string) {
 	check(err)
 	err = cmd.Start()
 	check(err)
-	defer cmd.Wait()
 	go io.Copy(os.Stdout, stdout)
 	go io.Copy(os.Stderr, stderr)
+	err = cmd.Wait()
+	check(err)
 }
