@@ -1,0 +1,102 @@
+{
+  "id": "hipops-SAMOMY",
+  "description": "(S)sailsJS-backend + (A)angular-frontend + (MO)mongodb + (MY)mysql",
+  "env": "dev",
+  "apps": [{
+    "name": "mongo-db",
+    "type": "db",
+    "data": "/data/{{.Id}}/db/",
+    "image": "aminjam/mongodb",
+    "ports": [27017],
+    "run": "/run.sh"
+  }, {
+    "name": "mysql-db",
+    "type": "db",
+    "branch": "master",
+    "repo": "github.com/aminjam/hipops-SAMOMY-mysql.git",
+    "data": "/data/{{.Id}}/db/",
+    "dbName": "sailsjs_hello_api",
+    "image": "tutum/mysql:5.6",
+    "run": "/run.sh",
+    "runCustom": "../../docker/mysql/run.sh",
+    "ports": [3306],
+    "sshKey": "/Users/ajamali/.ssh/id_rsa"
+  }, {
+    "name": "backend-api",
+    "type": "nodejs",
+    "branch": "master",
+    "repo": "github.com/aminjam/hipops-SAMOMY-backend.git",
+    "host": "hipops-SAMOMY-backend.com",
+    "data": "/data/{{.Id}}/nodejs/",
+    "image": "aminjam/nodejs",
+    "ports": [3001],
+    "run": "/run.sh",
+    "sshKey": "/Users/ajamali/.ssh/id_rsa"
+  }, {
+    "name": "frontend-web",
+    "type": "static",
+    "branch": "master",
+    "repo": "github.com/aminjam/hipops-SAMOMY-frontend.git",
+    "host": "hipops-SAMOMY-frontend.com",
+    "data": "/data/{{.Id}}/static/",
+    "image": "aminjam/nginx-static",
+    "ports": [80, 443],
+    "dir": "dist/",
+    "sshKey": "/Users/ajamali/.ssh/id_rsa"
+  }],
+  "servers": [{
+    "role": "web",
+    "type": "single",
+    "apps": ["{{index .Apps 0}}"]
+  }],
+  "playbooks": [{
+    "name": "{{.App.Name}}",
+    "play": "push-docker.yml",
+    "inventory": "tag_App-Role_SAMOMY-DEV",
+    "apps": ["{{index .Apps 0}}"],
+    "state": "running",
+    "actions": [{
+      "image": "{{.App.Image}}",
+      "params": "-v {{.App.Data}}:/home/app -p 9990:{{index .App.Ports 0}} -d {{.App.Image}} {{.App.Run}}"
+    }]
+  }, {
+    "name": "{{.App.Name}}",
+    "play": "push-docker.yml",
+    "inventory": "tag_App-Role_SAMOMY-DEV",
+    "apps": ["{{index .Apps 1}}"],
+    "state": "running",
+    "actions": [{
+      "image": "{{.App.Image}}",
+      "params": "-v {{.App.Data}}:/var/lib/mysql -v {{.App.Run}}:{{.App.Run}} -p 9991:{{index .App.Ports 0}} -e MYSQL_USER=admin -e MYSQL_PASS=w7uyzyR4vDcdv6PHQBj8 -d {{.App.Image}} {{.App.Run}} {{.App.DbName}}"
+    }]
+  }, {
+    "name": "{{.App.Name}}",
+    "play": "deploy-app.yml",
+    "inventory": "tag_App-Role_SAMOMY-DEV",
+    "apps": ["{{index .Apps 2}}"],
+    "state": "deploying",
+    "actions": [{
+      "image": "{{.App.Image}}",
+      "params": "-v {{.App.Data}}:/home/app -p 9992:{{index .App.Ports 0}} -e VIRTUAL_HOST={{.App.Host}} -e NODE_ENV=production --link {{(index .Apps 0).Name}}:mongo --link {{(index .Apps 1).Name}}:mysql -d {{.App.Image}} {{.App.Run}}"
+    }]
+  }, {
+    "name": "{{.App.Name}}",
+    "play": "deploy-app.yml",
+    "inventory": "tag_App-Role_SAMOMY-DEV",
+    "apps": ["{{index .Apps 3}}"],
+    "state": "deploying",
+    "actions": [{
+      "image": "{{.App.Image}}",
+      "params": "-v {{.App.Data}}:/home/app -p 9993:{{index .App.Ports 0}} -e VIRTUAL_HOST={{.App.Host}} -d {{.App.Image}}"
+    }]
+  }, {
+    "name": "nginx-proxy",
+    "play": "push-docker.yml",
+    "inventory": "tag_Role_SAMOMY-DEV",
+    "state": "running",
+    "actions": [{
+      "image": "aminjam/nginx-proxy",
+      "params": "-v /var/run/docker.sock:/tmp/docker.sock -p 80:80 -d aminjam/nginx-proxy"
+    }]
+  }]
+}

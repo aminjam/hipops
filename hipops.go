@@ -23,11 +23,15 @@ type Configuration struct {
 	Servers              []Server
 }
 type App struct {
-	Branch, Config, Data, DbName,
-	Host, Image, Name,
-	Repo, Dir, Run, RunCustom,
-	Server, SshKey, Type string
+	Branch, Config, Data, Host,
+	Image, Name, Repo, Dir, Run,
+	RunCustom, Server, SshKey, Type string
 	Ports []int
+	Cred  Cred
+}
+
+type Cred struct {
+	DbName, Username, Password string
 }
 
 type Server struct {
@@ -54,7 +58,7 @@ func (s *envMap) Get(n string) string {
 }
 
 func expandEnv(s string, m EnvironmentMap) string {
-	var pat = regexp.MustCompile(`\$[A-Z]+`)
+	var pat = regexp.MustCompile(`\$[A-Z_-]+`)
 	return string(pat.ReplaceAllFunc([]byte(s), func(bs []byte) []byte {
 		return []byte(m(string(bs)))
 	}))
@@ -71,7 +75,7 @@ func main() {
 	)
 	flag.Parse()
 	if *flHosts == "" {
-		log.Fatal("Usage: [-h <Inventory Hosts Target>][-k <SSH private key>]")
+		log.Fatal("Help: --help")
 	}
 	if *flDebug != "" {
 		*flDebug = "-" + strings.TrimPrefix(*flDebug, "-")
@@ -100,62 +104,97 @@ func main() {
 				if appGitKey == "" {
 					appGitKey = parse("{{.App.SshKey}}", c, app)
 				}
+				for _, action := range p.Actions {
+					dockerParams := configureParams(parse(setAnsibleParams(action.Params, true), c, app), false)
+					containerName := parse(p.Name, c, app)
+					if containerName == "" {
+						containerName = extractName(dockerParams)
+						if containerName == "" {
+							log.Fatalf("ERROR: container name is required.")
+						}
+						dockerParams = fmt.Sprintf("--name %s %s", containerName, dockerParams)
+					}
+					RunCmd("ansible-playbook",
+						fmt.Sprintf("%s%s", *flPlaybooks, p.Play),
+						"-i", *flHosts,
+						"-u ubuntu",
+						"--private-key", *flPrivateKey,
+						"-e", fmt.Sprintf("inventory=%s name=%s image=%s state=%s params=\"%s\" repo=%s sshKey=%s branch=%s dir=%s path=%s runSource=%s runDest=%s",
+							p.Inventory,
+							containerName,
+							parse(action.Image, c, app),
+							p.State,
+							dockerParams,
+							parse("{{.App.Repo}}", c, app),
+							appGitKey,
+							parse("{{.App.Branch}}", c, app),
+							parse("{{.App.Dir}}", c, app),
+							parse("{{.App.Data}}", c, app),
+							runSource, runDest,
+						),
+						*flDebug,
+					)
+				}
+			}
+		} else {
+			for _, action := range p.Actions {
+				dockerParams := parse(action.Params, c, "")
+				containerName := extractName(dockerParams)
+				if containerName == "" {
+					containerName = parse(p.Name, c, "")
+					if containerName == "" {
+						log.Fatalf("ERROR: container name is required.")
+					}
+					dockerParams = fmt.Sprintf("--name %s %s", containerName, dockerParams)
+				}
 				RunCmd("ansible-playbook",
 					fmt.Sprintf("%s%s", *flPlaybooks, p.Play),
 					"-i", *flHosts,
 					"-u ubuntu",
 					"--private-key", *flPrivateKey,
-					"-e", fmt.Sprintf("inventory=%s name=%s image=%s state=%s params=\"%s\" repo=%s sshKey=%s branch=%s dir=%s path=%s runSource=%s runDest=%s",
+					"-e", fmt.Sprintf("inventory=%s name=%s image=%s state=%s params=\"%s\" repo='' sshKey='' branch='' dir='' path='' runSource=NA",
 						p.Inventory,
-						parse(p.Name, c, app),
-						parse(p.Actions[0].Image, c, app),
+						containerName,
+						parse(action.Image, c, ""),
 						p.State,
-						configureParams(parse(configureParams(p.Actions[0].Params, true), c, app), false),
-						parse("{{.App.Repo}}", c, app),
-						appGitKey,
-						parse("{{.App.Branch}}", c, app),
-						parse("{{.App.Dir}}", c, app),
-						parse("{{.App.Data}}", c, app),
-						runSource, runDest,
+						dockerParams,
 					),
 					*flDebug,
 				)
 			}
-		} else {
-			RunCmd("ansible-playbook",
-				fmt.Sprintf("%s%s", *flPlaybooks, p.Play),
-				"-i", *flHosts,
-				"-u ubuntu",
-				"--private-key", *flPrivateKey,
-				"-e", fmt.Sprintf("inventory=%s name=%s image=%s state=%s params=\"%s\" repo='' sshKey='' branch='' dir='' path='' runSource=NA",
-					p.Inventory,
-					parse(p.Name, c, ""),
-					parse(p.Actions[0].Image, c, ""),
-					p.State,
-					parse(p.Actions[0].Params, c, ""),
-				),
-				*flDebug,
-			)
 		}
 	}
 }
-func configureParams(input string, set bool) string {
-	ansible_ip := "{{ ansible_eth1.ipv4.address }}"
-	ansible_ip_TEMP := "@ANSIBLE_IP"
-	temp := ""
-	if set == true {
-		temp = strings.Replace(input, ansible_ip, ansible_ip_TEMP, -1)
-		return temp
+
+func extractName(s string) string {
+	var pat = regexp.MustCompile(`--name\s.+\s`)
+	match := pat.FindString(s)
+	if match != "" {
+		name := strings.Split(pat.FindString(s), " ")[1]
+		return name
 	}
-	temp = strings.Replace(input, ansible_ip_TEMP, ansible_ip, -1)
+	return match
+}
+
+func setAnsibleParams(s string, set bool) string {
+	if set == true {
+		var p = regexp.MustCompile(`({{\s*ansible_(&}})*)`)
+		return p.ReplaceAllString(s, "@ANSIBLE.${2}")
+	}
+	var p = regexp.MustCompile(`(@ANSIBLE.(&}})*)`)
+	return p.ReplaceAllString(s, "{{ ansible_${2}")
+}
+
+func configureParams(input string, set bool) string {
+	input = setAnsibleParams(input, false)
 	env := envMap{}
 	for _, v := range os.Environ() {
 		var a = strings.Split(v, "=")
 		env[a[0]] = a[1]
 	}
 
-	temp = expandEnv(temp, env.Get)
-	return temp
+	input = expandEnv(input, env.Get)
+	return input
 
 }
 func format(input string, app string) string {

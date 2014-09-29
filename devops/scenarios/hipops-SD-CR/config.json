@@ -32,7 +32,7 @@
     "state": "running",
     "actions": [{
       "image": "{{.App.Image}}",
-      "params": "-v {{.App.Data}}:/data -p {{ ansible_eth1.ipv4.address }}:8300:8300 -p {{ ansible_eth1.ipv4.address }}:8301:8301 -p {{ ansible_eth1.ipv4.address }}:8301:8301/udp -p {{ ansible_eth1.ipv4.address }}:8302:8302 -p {{ ansible_eth1.ipv4.address }}:8302:8302/udp -p {{ ansible_eth1.ipv4.address }}:8400:8400 -p {{ ansible_eth1.ipv4.address }}:8500:8500 -p {{ ansible_eth1.ipv4.address }}:8600:53 -d {{.App.Image}} -server -advertise {{ ansible_eth1.ipv4.address }} -join $CONSULSERVER"
+      "params": "-v {{.App.Data}}:/data -p {{ ansible_eth1.ipv4.address }}:8300:8300 -p {{ ansible_eth1.ipv4.address }}:8301:8301 -p {{ ansible_eth1.ipv4.address }}:8301:8301/udp -p {{ ansible_eth1.ipv4.address }}:8302:8302 -p {{ ansible_eth1.ipv4.address }}:8302:8302/udp -p {{ ansible_eth1.ipv4.address }}:8400:8400 -p {{ ansible_eth1.ipv4.address }}:8500:8500 -p {{ ansible_eth1.ipv4.address }}:8600:53 -d {{.App.Image}} -server -advertise {{ ansible_eth1.ipv4.address }} -join $CONSUL_SERVER"
     }]
   }, {
     "name": "{{.App.Name}}",
