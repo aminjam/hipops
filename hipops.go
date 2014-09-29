@@ -106,9 +106,9 @@ func main() {
 				}
 				for _, action := range p.Actions {
 					dockerParams := configureParams(parse(setAnsibleParams(action.Params, true), c, app), false)
-					containerName := parse(p.Name, c, app)
+					containerName := extractName(dockerParams)
 					if containerName == "" {
-						containerName = extractName(dockerParams)
+						containerName = parse(p.Name, c, app)
 						if containerName == "" {
 							log.Fatalf("ERROR: container name is required.")
 						}

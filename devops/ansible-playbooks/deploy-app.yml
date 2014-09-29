@@ -32,7 +32,7 @@
        shell: docker rm {{ name }}
        ignore_errors: yes
      - name: Docker run container
-       shell: "docker run --name {{ name }} {{ params }}"
+       shell: "docker run {{ params }}"
      - name: Remove local Files
        delegate_to: 127.0.0.1
        shell: rm -rf {{ app_path }} && rm /tmp/random

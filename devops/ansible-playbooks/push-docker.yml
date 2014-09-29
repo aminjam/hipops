@@ -44,5 +44,5 @@
       when: isRunning|failed or state!="running" or isRunning.stdout=="false"
       ignore_errors: yes
     - name: Docker run container
-      command: "docker run --name {{ name }} {{ params }}"
+      command: "docker run {{ params }}"
       when: isRunning|failed or state!="running" or isRunning.stdout=="false"
