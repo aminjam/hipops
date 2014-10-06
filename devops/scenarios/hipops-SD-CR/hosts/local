@@ -5,3 +5,4 @@
 172.20.21.10 ansible_connection=ssh
 172.20.21.11 ansible_connection=ssh
 172.20.21.12 ansible_connection=ssh
+172.20.21.13 ansible_connection=ssh

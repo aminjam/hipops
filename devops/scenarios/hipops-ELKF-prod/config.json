@@ -1,0 +1,65 @@
+{
+  "id": "hipops-ELKF",
+  "description": "(E)elasticsearch + (L)logstash + (K)kabana + (F)logstash-forwarder",
+  "env": "prod",
+  "user": "ubuntu",
+  "dest": "/data",
+  "apps": [{
+    "name": "elasticsearch-logstash",
+    "type": "global",
+    "host": "hipops-elkf.com",
+    "image": "pblittle/docker-logstash:latest",
+    "customizations": [{
+      "src": "../../docker/logstash/logstash.conf",
+      "dest": "logstash.conf"
+    }, {
+      "src": "../../docker/logstash/logstash-forwarder/logstash-forwarder.crt",
+      "dest": "logstash-forwarder/logstash-forwarder.crt"
+    }, {
+      "src": "../../docker/logstash/logstash-forwarder/logstash-forwarder.key",
+      "dest": "logstash-forwarder/logstash-forwarder.key"
+    }],
+    "ports": [9200, 9292]
+  }, {
+    "name": "logstash-forwarder",
+    "type": "global",
+    "image": "digitalwonderland/logstash-forwarder:latest",
+    "customizations": [{
+      "src": "../../docker/logstash/logstash-forwarder/logstash-forwarder.crt",
+      "dest": "logstash-forwarder/logstash-forwarder.crt"
+    }, {
+      "src": "../../docker/logstash/logstash-forwarder/logstash-forwarder.key",
+      "dest": "logstash-forwarder/logstash-forwarder.key"
+    }]
+  }],
+  "playbooks": [{
+    "inventory": "tag_App-Role_ELKF-prod",
+    "actions": [{
+      "image": "progrium/ambassadord",
+      "params": "--name backends -v /var/run/docker.sock:/var/run/docker.sock -d progrium/ambassadord --omnimode"
+    }, {
+      "image": "progrium/ambassadord",
+      "params": "--name setup_ip --rm --privileged --net container:backends progrium/ambassadord --setup-iptables"
+    }]
+  }, {
+    "inventory": "tag_App-Role_ELKF-prod",
+    "apps": ["{{index .Apps 0}}"],
+    "state": "deploying",
+    "actions": [{
+      "params": "-v {{.App.Dest}}:/mnt -v {{.App.Dest}}/logstash.conf:/opt/logstash.conf --expose 9921 -p 9292:9292 -p 9200:9200 -p 9921:9921 -e VIRTUAL_HOST={{.App.Host}} -e VIRTUAL_PORT=9292 -e SERVICE_NAME={{.App.Name}} -e BACKEND_9921={{.App.Name}}.service.consul -d {{.App.Image}}"
+    }]
+  }, {
+    "inventory": "tag_App-Role_ELKF-prod-forwarder",
+    "apps": ["{{index .Apps 1}}"],
+    "state": "deploying",
+    "actions": [{
+      "params": "-v {{.App.Dest}}:/mnt -v /var/lib/docker:/var/lib/docker:ro -v /var/run/docker.sock:/var/run/docker.sock -e LOGSTASH_HOST=$LOGSTASH_HOST -d {{.App.Image}}"
+    }]
+  }, {
+    "inventory": "tag_App-Role_ELKF-prod",
+    "actions": [{
+      "image": "aminjam/nginx-proxy",
+      "params": "--name nginx-proxy -v /var/run/docker.sock:/tmp/docker.sock -p 80:80 -d aminjam/nginx-proxy"
+    }]
+  }]
+}

@@ -1,0 +1,32 @@
+---
+- name: src path
+  shell: echo "/tmp/hipops-app-{{ 100000 |random(1, 10) }}"
+  register: src
+
+- name: retrieve code
+  delegate_to: 127.0.0.1
+  git:
+    repo=ssh://git@{{ repository.sshUrl }}
+    dest={{ src.stdout }}
+    accept_hostkey=yes
+    key_file={{ repository.sshKey }}
+    version={{ repository.branch }}
+  when: repository.sshUrl != ""
+
+- name: ensure dest path
+  sudo: yes
+  file: path={{ dest }} state=directory
+  when: dest != ""
+
+- name: ensure write permission
+  sudo: yes
+  shell: chown -R {{ ansible_user_id }}:{{ ansible_user_id }} {{ dest }}
+  when: dest != ""
+
+- name: sync files to remote location
+  synchronize: src="{{ src.stdout }}/{{ repository.folder }}" dest="{{ dest }}/" delete=yes recursive=yes
+  when: repository.sshUrl != ""
+
+- name: remove temp Files
+  delegate_to: 127.0.0.1
+  shell: rm -rf {{ src.stdout }}

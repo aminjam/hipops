@@ -3,50 +3,102 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	flag "github.com/dotcloud/docker/pkg/mflag"
 	"io"
 	"io/ioutil"
 	"log"
+	"math/rand"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"text/template"
+	"time"
 )
 
-type Configuration struct {
-	Env, Id, Description string
-	Apps                 []App
-	Playbooks            []Playbook
-	Servers              []Server
+type Scenario struct {
+	Env, Id, Description,
+	User, Dest string
+	Apps      []App
+	Playbooks []Playbook
 }
 type App struct {
-	Branch, Config, Data, Host,
-	Image, Name, Repo, Dir, Run,
-	RunCustom, Server, SshKey, Type string
-	Ports []int
-	Cred  Cred
+	Host, Image, Name, Dest,
+	Type, User string
+	Ports          []int
+	Cred           Cred
+	Customizations []Customization
+	Repository     Repository
+}
+
+func (a *App) configureName(scenario *Scenario) {
+	if a.Type != "global" {
+		a.Name = fmt.Sprintf("%s-%s-%s-%s", scenario.Id, scenario.Env, a.Type, a.Name)
+	}
+}
+
+type Repository struct {
+	Branch string `json:"branch"`
+	SshUrl string `json:"sshUrl"`
+	SshKey string `json:"sshKey"`
+	Folder string `json:"folder"`
+}
+
+type Customization struct {
+	Src        string `json:"src"`
+	Dest       string `json:"dest"`
+	DestFolder string `json:"destFolder"`
+	Mode       int    `json:"mode"`
 }
 
 type Cred struct {
 	DbName, Username, Password string
 }
 
-type Server struct {
-	Role, Type string
-	Apps       []string
-}
 type Playbook struct {
 	Name, Play, State,
 	Inventory string
 	Actions []DockerAction
 	Apps    []string
 }
+
 type DockerAction struct {
-	Image  string
-	Params string
+	Image  string `json:"image"`
+	Params string `json:"params"`
+	Name   string `json:"name"`
+	State  string `json:"state"`
+}
+
+type AnsibleVars struct {
+	Dest       string          `json:"dest"`
+	Inventory  string          `json:"inventory"`
+	Repository Repository      `json:"repository"`
+	Files      []Customization `json:"files"`
+	Containers []DockerAction  `json:"containers"`
+}
+
+func (av *AnsibleVars) parseActions(scenario *Scenario, p *Playbook, appString string) {
+	for _, action := range p.Actions {
+		params := configureParams(parse(setAnsibleParams(action.Params, true), *scenario, appString), false)
+		name := extractName(params)
+		if name == "" {
+			name = parse(p.Name, *scenario, appString)
+			if name == "" {
+				err := errors.New(fmt.Sprintf("Error, container name is required for play %s", p.Name))
+				check(err)
+			}
+			params = fmt.Sprintf("--name %s %s", name, params)
+		}
+		if action.Image == "" {
+			action.Image = "{{.App.Image}}"
+		}
+		action.Image = parse(action.Image, *scenario, appString)
+		av.Containers = append(av.Containers, DockerAction{Name: name, Image: action.Image, Params: params, State: p.State})
+	}
 }
 
 type EnvironmentMap func(string) string
@@ -72,8 +124,10 @@ func main() {
 		flPrivateKey = flag.String([]string{"k", "-host-key"}, "", "SSH Host Private Key")
 		flGitKey     = flag.String([]string{"g", "-git-key"}, "", "SSH Git Key for Repo")
 		flDebug      = flag.String([]string{"d", "-debug"}, "v", "debug flag e.g. vvvv")
+		flTrigger    = flag.String([]string{"t", "-trigger"}, "", "name of the app to trigger")
 	)
 	flag.Parse()
+	deleteHipopsFiles()
 	if *flHosts == "" {
 		log.Fatal("Help: --help")
 	}
@@ -82,88 +136,199 @@ func main() {
 	}
 
 	config, err := ioutil.ReadFile(*flConfigFile)
+	configDir := filepath.Dir(*flConfigFile)
+	playbooksPath := strings.TrimSuffix(*flPlaybooks, "/") + "/"
+
 	check(err)
-	var c Configuration
-	err = json.Unmarshal(config, &c)
+	var scenario Scenario
+	err = json.Unmarshal(config, &scenario)
 	check(err)
-	for k, v := range c.Apps {
-		c.Apps[k].Name = parse(v.Name+"-{{.Id}}-{{.Env}}", c, "")
-		c.Apps[k].Data = parse(v.Data+v.Name, c, "")
+	scenario.Dest = strings.TrimSuffix(scenario.Dest, "/")
+	for i, _ := range scenario.Apps {
+		scenario.Apps[i].configureName(&scenario)
 	}
-	for _, p := range c.Playbooks {
+	for _, p := range scenario.Playbooks {
+		ansibleVars := AnsibleVars{}
+		repo := Repository{SshKey: *flGitKey}
+		ansibleVars.Repository = repo
+		user := scenario.User
+
+		if p.State == "" {
+			p.State = "running"
+		}
+
 		if len(p.Apps) != 0 {
-			for _, app := range p.Apps {
-				fmt.Println(app)
-				runSource, runDest := "NA", "NA"
-				if parse("{{.App.RunCustom}}", c, app) != "" {
-					dir := filepath.Dir(*flConfigFile)
-					runSource, _ = filepath.Abs(dir + "/" + parse("{{.App.RunCustom}}", c, app))
-					runDest = strings.SplitAfter(parse("{{.App.Run}}", c, app), " ")[0]
-				}
-				appGitKey := *flGitKey
-				if appGitKey == "" {
-					appGitKey = parse("{{.App.SshKey}}", c, app)
-				}
-				for _, action := range p.Actions {
-					dockerParams := configureParams(parse(setAnsibleParams(action.Params, true), c, app), false)
-					containerName := extractName(dockerParams)
-					if containerName == "" {
-						containerName = parse(p.Name, c, app)
-						if containerName == "" {
-							log.Fatalf("ERROR: container name is required.")
-						}
-						dockerParams = fmt.Sprintf("--name %s %s", containerName, dockerParams)
+			for _, appString := range p.Apps {
+				p.Name = parse("{{.App.Name}}", scenario, appString)
+				if *flTrigger == "" || p.State == "running" || (*flTrigger != "" && strings.HasPrefix(p.Name, *flTrigger)) {
+					err, app := findapp(p.Name, scenario)
+					if err != nil {
+						err := errors.New(fmt.Sprintf("Error, %s: %s", err, appString))
+						check(err)
+					} else {
+						fmt.Println(fmt.Sprintf("Running: app %s:%s", appString, app.Name))
 					}
+					if p.Play == "" {
+						p.Play = "hipops.yml"
+					}
+
+					if app.Dest == "" {
+						if scenario.Dest == "" {
+							err := errors.New("scenario and app-specific destination paths are both unkown.")
+							check(err)
+						}
+						if app.Type == "" {
+							app.Type = "generic"
+						}
+						app.Dest = fmt.Sprintf("%s/%s-%s/%s/%s", scenario.Dest, scenario.Id, scenario.Env, app.Type, app.Name)
+					}
+					ansibleVars.Dest = app.Dest
+
+					if app.Customizations != nil {
+						for _, customization := range app.Customizations {
+							src := customization.Src
+							dest := customization.Dest
+							if strings.HasPrefix(src, "http") {
+								src = downloadFile(src)
+							} else if !strings.HasPrefix(src, "/") {
+								src, _ = filepath.Abs(configDir + "/" + src)
+							}
+							mode := customization.Mode
+							if mode == 0 {
+								mode = 400
+							}
+							if !strings.HasPrefix(dest, "~") || !strings.HasPrefix(dest, "/") {
+								dest = fmt.Sprintf("%s/%s", strings.TrimSuffix(ansibleVars.Dest, "/"), dest)
+							}
+							destFolder := dest[:strings.LastIndex(dest, "/")]
+							ansibleVars.Files = append(ansibleVars.Files, Customization{Src: src, DestFolder: destFolder, Dest: dest, Mode: mode})
+						}
+					} else {
+						ansibleVars.Files = make([]Customization, 0)
+					}
+
+					if app.User != "" {
+						user = app.User
+					}
+
+					if app.Repository.SshUrl != "" {
+						if ansibleVars.Repository.SshKey != "" {
+							app.Repository.SshKey = ansibleVars.Repository.SshKey
+						}
+						if app.Repository.SshKey == "" {
+							err := errors.New(fmt.Sprintf("app %s has no associated repository SSH-Key", app.Name))
+							check(err)
+						}
+						if app.Repository.Branch == "" {
+							app.Repository.Branch = "master"
+						}
+
+						ansibleVars.Repository.SshKey = app.Repository.SshKey
+						ansibleVars.Repository.SshUrl = app.Repository.SshUrl
+						ansibleVars.Repository.Branch = app.Repository.Branch
+						ansibleVars.Repository.Folder = app.Repository.Folder
+					}
+
+					ansibleVars.Inventory = p.Inventory
+					ansibleVars.parseActions(&scenario, &p, appString)
+					content, err := json.Marshal(ansibleVars)
+					check(err)
+					fileName := writeFile(content, "json")
 					RunCmd("ansible-playbook",
-						fmt.Sprintf("%s%s", *flPlaybooks, p.Play),
+						fmt.Sprintf("%s%s", playbooksPath, p.Play),
 						"-i", *flHosts,
-						"-u ubuntu",
+						"-u", user,
 						"--private-key", *flPrivateKey,
-						"-e", fmt.Sprintf("inventory=%s name=%s image=%s state=%s params=\"%s\" repo=%s sshKey=%s branch=%s dir=%s path=%s runSource=%s runDest=%s",
-							p.Inventory,
-							containerName,
-							parse(action.Image, c, app),
-							p.State,
-							dockerParams,
-							parse("{{.App.Repo}}", c, app),
-							appGitKey,
-							parse("{{.App.Branch}}", c, app),
-							parse("{{.App.Dir}}", c, app),
-							parse("{{.App.Data}}", c, app),
-							runSource, runDest,
-						),
+						"--extra-vars", "@"+fileName,
 						*flDebug,
 					)
 				}
 			}
 		} else {
-			for _, action := range p.Actions {
-				dockerParams := parse(action.Params, c, "")
-				containerName := extractName(dockerParams)
-				if containerName == "" {
-					containerName = parse(p.Name, c, "")
-					if containerName == "" {
-						log.Fatalf("ERROR: container name is required.")
-					}
-					dockerParams = fmt.Sprintf("--name %s %s", containerName, dockerParams)
-				}
-				RunCmd("ansible-playbook",
-					fmt.Sprintf("%s%s", *flPlaybooks, p.Play),
-					"-i", *flHosts,
-					"-u ubuntu",
-					"--private-key", *flPrivateKey,
-					"-e", fmt.Sprintf("inventory=%s name=%s image=%s state=%s params=\"%s\" repo='' sshKey='' branch='' dir='' path='' runSource=NA",
-						p.Inventory,
-						containerName,
-						parse(action.Image, c, ""),
-						p.State,
-						dockerParams,
-					),
-					*flDebug,
-				)
+			if p.Play == "" {
+				p.Play = "hipops.yml"
+			}
+			ansibleVars.Inventory = p.Inventory
+			ansibleVars.Files = make([]Customization, 0)
+			ansibleVars.parseActions(&scenario, &p, "")
+			content, err := json.Marshal(ansibleVars)
+			check(err)
+			fileName := writeFile(content, "json")
+			RunCmd("ansible-playbook",
+				fmt.Sprintf("%s%s", playbooksPath, p.Play),
+				"-i", *flHosts,
+				"-u", user,
+				"--private-key", *flPrivateKey,
+				"--extra-vars", "@"+fileName,
+				*flDebug,
+			)
+		}
+	}
+}
+
+func downloadFile(url string) string {
+	rand.Seed(time.Now().UnixNano())
+	fileName := fmt.Sprintf("/tmp/hipops-%v", rand.Intn(1000000))
+	fmt.Println("Downloading file...")
+
+	output, err := os.Create(fileName)
+	defer output.Close()
+
+	response, err := http.Get(url)
+	check(err)
+	defer response.Body.Close()
+
+	_, err = io.Copy(output, response.Body)
+	check(err)
+	return fileName
+}
+
+func deleteHipopsFiles() {
+	d, err := os.Open("/tmp")
+	defer d.Close()
+	check(err)
+
+	files, err := d.Readdir(-1)
+	check(err)
+
+	fmt.Println("Reading files for /tmp")
+
+	for _, file := range files {
+		if file.Mode().IsRegular() {
+			if strings.HasPrefix(file.Name(), "hipops-") {
+				os.Remove("/tmp/" + file.Name())
+				fmt.Println("Deleted ", file.Name())
+			}
+		} else if file.Mode().IsDir() {
+			if strings.HasPrefix(file.Name(), "hipops-app") {
+				os.RemoveAll("/tmp/" + file.Name())
+				fmt.Println("Deleted Dir", file.Name())
 			}
 		}
 	}
+}
+
+func writeFile(content []byte, fileType string) string {
+	rand.Seed(time.Now().UnixNano())
+	fileName := fmt.Sprintf("/tmp/hipops-%v.%s", rand.Intn(1000000), fileType)
+	output, err := os.Create(fileName)
+	defer output.Close()
+
+	check(err)
+	_, err = io.WriteString(output, fmt.Sprintf("%s", content))
+	check(err)
+	return fileName
+}
+
+func findapp(name string, scenario Scenario) (error, *App) {
+	if name != "" {
+		for k, v := range scenario.Apps {
+			if strings.Contains(v.Name, name) {
+				return nil, &scenario.Apps[k]
+			}
+		}
+	}
+	return errors.New("app not found."), nil
 }
 
 func extractName(s string) string {
