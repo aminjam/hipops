@@ -127,7 +127,6 @@ func main() {
 		flTrigger    = flag.String([]string{"t", "-trigger"}, "", "name of the app to trigger")
 	)
 	flag.Parse()
-	deleteHipopsFiles()
 	if *flHosts == "" {
 		log.Fatal("Help: --help")
 	}
@@ -143,7 +142,10 @@ func main() {
 	var scenario Scenario
 	err = json.Unmarshal(config, &scenario)
 	check(err)
+	fileSuffix := fmt.Sprintf("%s-%s", scenario.Id, scenario.Env)
+
 	scenario.Dest = strings.TrimSuffix(scenario.Dest, "/")
+	cleanupFiles(fileSuffix)
 	for i, _ := range scenario.Apps {
 		scenario.Apps[i].configureName(&scenario)
 	}
@@ -189,7 +191,7 @@ func main() {
 							src := customization.Src
 							dest := customization.Dest
 							if strings.HasPrefix(src, "http") {
-								src = downloadFile(src)
+								src = downloadFile(src, fileSuffix)
 							} else if !strings.HasPrefix(src, "/") {
 								src, _ = filepath.Abs(configDir + "/" + src)
 							}
@@ -233,7 +235,7 @@ func main() {
 					ansibleVars.parseActions(&scenario, &p, appString)
 					content, err := json.Marshal(ansibleVars)
 					check(err)
-					fileName := writeFile(content, "json")
+					fileName := writeFile(content, "json", fileSuffix)
 					RunCmd("ansible-playbook",
 						fmt.Sprintf("%s%s", playbooksPath, p.Play),
 						"-i", *flHosts,
@@ -253,7 +255,7 @@ func main() {
 			ansibleVars.parseActions(&scenario, &p, "")
 			content, err := json.Marshal(ansibleVars)
 			check(err)
-			fileName := writeFile(content, "json")
+			fileName := writeFile(content, "json", fileSuffix)
 			RunCmd("ansible-playbook",
 				fmt.Sprintf("%s%s", playbooksPath, p.Play),
 				"-i", *flHosts,
@@ -266,9 +268,9 @@ func main() {
 	}
 }
 
-func downloadFile(url string) string {
+func downloadFile(url string, suffix string) string {
 	rand.Seed(time.Now().UnixNano())
-	fileName := fmt.Sprintf("/tmp/hipops-%v", rand.Intn(1000000))
+	fileName := fmt.Sprintf("/tmp/hipops-%s-%v", suffix, rand.Intn(1000000))
 	fmt.Println("Downloading file...")
 
 	output, err := os.Create(fileName)
@@ -283,7 +285,7 @@ func downloadFile(url string) string {
 	return fileName
 }
 
-func deleteHipopsFiles() {
+func cleanupFiles(suffix string) {
 	d, err := os.Open("/tmp")
 	defer d.Close()
 	check(err)
@@ -295,22 +297,17 @@ func deleteHipopsFiles() {
 
 	for _, file := range files {
 		if file.Mode().IsRegular() {
-			if strings.HasPrefix(file.Name(), "hipops-") {
+			if strings.HasPrefix(file.Name(), "hipops-"+suffix) {
 				os.Remove("/tmp/" + file.Name())
 				fmt.Println("Deleted ", file.Name())
-			}
-		} else if file.Mode().IsDir() {
-			if strings.HasPrefix(file.Name(), "hipops-app") {
-				os.RemoveAll("/tmp/" + file.Name())
-				fmt.Println("Deleted Dir", file.Name())
 			}
 		}
 	}
 }
 
-func writeFile(content []byte, fileType string) string {
+func writeFile(content []byte, fileType string, suffix string) string {
 	rand.Seed(time.Now().UnixNano())
-	fileName := fmt.Sprintf("/tmp/hipops-%v.%s", rand.Intn(1000000), fileType)
+	fileName := fmt.Sprintf("/tmp/hipops-%s-%v.%s", suffix, rand.Intn(1000000), fileType)
 	output, err := os.Create(fileName)
 	defer output.Close()
 
