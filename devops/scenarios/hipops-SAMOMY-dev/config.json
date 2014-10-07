@@ -23,7 +23,7 @@
       "password": "w7uyzyR443DSSvDcdv6PHQBj83aGT21"
     },
     "customizations": [{
-      "src": "../../docker/mysql/run.sh",
+      "src": "../../customizations/mysql/run.sh",
       "dest": "~/mysql-run.sh",
       "mode": 744
     }],

@@ -160,7 +160,7 @@ func main() {
 		if len(p.Apps) != 0 {
 			for _, appString := range p.Apps {
 				p.Name = parse("{{.App.Name}}", scenario, appString)
-				if *flTrigger == "" || p.State == "running" || (*flTrigger != "" && strings.HasPrefix(p.Name, *flTrigger)) {
+				if *flTrigger == "" || p.State == "running" || (*flTrigger != "" && strings.HasSuffix(p.Name, *flTrigger)) {
 					err, app := findapp(p.Name, scenario)
 					if err != nil {
 						err := errors.New(fmt.Sprintf("Error, %s: %s", err, appString))
