@@ -4,94 +4,75 @@
   "apps": [{
     "name": "blog.aminjam.com",
     "type": "nodejs",
-    "branch": "master",
-    "repo": "bitbucket.org/aminjam/blog.aminjam.com.git",
     "host": "blog.aminjam.com",
-    "data": "/data/{{.Id}}/nodejs/",
+    "repository": {
+      "branch": "master",
+      "sshUrl": "bitbucket.org/aminjam/blog.aminjam.com.git"
+    },
     "image": "aminjam/nodejs",
-    "ports": [3001],
-    "run": "/run.sh",
-    "sshKey": "/home/ubuntu/.ssh/id_rsa"
+    "ports": [3001]
   }, {
     "name": "health.lifepoints.net",
     "type": "nodejs",
-    "branch": "master",
-    "repo": "bitbucket.org/aminjam/health.lifepoints.net.git",
     "host": "health.lifepoints.net",
-    "data": "/data/{{.Id}}/nodejs/",
+    "repository": {
+      "branch": "master",
+      "sshUrl": "bitbucket.org/aminjam/health.lifepoints.net.git"
+    },
     "image": "aminjam/nodejs",
-    "ports": [3001],
-    "run": "/run.sh",
-    "sshKey": "/home/ubuntu/.ssh/id_rsa"
+    "ports": [3001]
   }, {
     "name": "hoboken.lifepoints.net",
     "type": "nodejs",
-    "branch": "master",
-    "repo": "bitbucket.org/aminjam/hoboken.lifepoints.net.git",
     "host": "hoboken.lifepoints.net",
-    "data": "/data/{{.Id}}/nodejs/",
+    "repository": {
+      "branch": "master",
+      "sshUrl": "bitbucket.org/aminjam/hoboken.lifepoints.net.git"
+    },
     "image": "aminjam/nodejs",
-    "ports": [3001],
-    "run": "/run.sh",
-    "sshKey": "/home/ubuntu/.ssh/id_rsa"
-  }, {
-    "name": "aminjam.com",
-    "type": "static",
-    "branch": "master",
-    "repo": "github.com/aminjam/aminjam.com.git",
-    "host": "aminjam.com",
-    "data": "/data/{{.Id}}/static/",
-    "image": "aminjam/nginx-static",
-    "ports": [80, 443],
-    "run": "/run.sh",
-    "sshKey": "/Users/ajamali/.ssh/id_rsa"
+    "ports": [3001]
   }, {
     "name": "foodies.lifepoints.net",
     "type": "nodejs",
-    "branch": "master",
-    "repo": "bitbucket.org/aminjam/foodies.lifepoints.net.git",
     "host": "foodies.lifepoints.net",
-    "data": "/data/{{.Id}}/nodejs/",
+    "repository": {
+      "branch": "master",
+      "sshUrl": "bitbucket.org/aminjam/foodies.lifepoints.net.git"
+    },
     "image": "aminjam/nodejs",
-    "ports": [3001],
-    "run": "/run.sh",
-    "sshKey": "/home/ubuntu/.ssh/id_rsa"
-  }],
-  "servers": [{
-    "role": "web",
-    "type": "single",
-    "apps": ["{{index .Apps 0}}"]
+    "ports": [3001]
+  }, {
+    "name": "aminjam.com",
+    "type": "static",
+    "host": "aminjam.com",
+    "repository": {
+      "branch": "master",
+      "sshUrl": "github.com/aminjam/aminjam.com.git"
+    },
+    "image": "aminjam/nginx-static",
+    "ports": [80, 443]
   }],
   "playbooks": [{
-    "name": "{{.App.Name}}",
-    "play": "deploy-app-ref.yml",
     "inventory": "tag_Name_personal",
     "apps": ["{{index .Apps 0}}", "{{index .Apps 1}}", "{{index .Apps 2}}",
-      "{{index .Apps 4}}"
+      "{{index .Apps 3}}"
     ],
     "state": "deploying",
     "actions": [{
-      "image": "{{.App.Image}}",
-      "params": "-v {{.App.Data}}:/home/app -e VIRTUAL_HOST={{.App.Host}} -d {{.App.Image}} {{.App.Run}}"
+      "params": "-v {{.App.Dest}}:/home/app -e VIRTUAL_HOST={{.App.Host}} -d {{.App.Image}} /run.sh"
     }]
   }, {
-    "name": "{{.App.Name}}",
-    "play": "deploy-app.yml",
     "inventory": "tag_Name_personal",
-    "apps": ["{{index .Apps 3}}"],
+    "apps": ["{{index .Apps 4}}"],
     "state": "deploying",
     "actions": [{
-      "image": "{{.App.Image}}",
-      "params": "-v {{.App.Data}}:/home/app -e VIRTUAL_HOST={{.App.Host}} -d {{.App.Image}}"
+      "params": "-v {{.App.Dest}}:/home/app -e VIRTUAL_HOST={{.App.Host}} -d {{.App.Image}}"
     }]
   }, {
-    "name": "nginx-proxy",
-    "play": "push-docker.yml",
-    "inventory": "*",
-    "state": "running",
+    "inventory": "tag_Name_personal",
     "actions": [{
       "image": "aminjam/nginx-proxy",
-      "params": "-v /var/run/docker.sock:/tmp/docker.sock -p 80:80 -d aminjam/nginx-proxy"
+      "params": "--name nginx-proxy -v /var/run/docker.sock:/tmp/docker.sock -p 80:80 -d aminjam/nginx-proxy"
     }]
   }]
 }
