@@ -1,0 +1,17 @@
+---
+- name: setup vagrant for docker
+  hosts: "vagrant"
+  tasks:
+    - {include: tasks/install-docker.yml, user: "ubuntu" }
+
+    - name: remove the .ssh folder for ubuntu user
+      sudo: yes
+      shell: rm -rf /home/ubuntu/.ssh/*
+
+    - name: copy authorized_key to the ubuntu user
+      sudo: yes
+      shell: cp /home/vagrant/.ssh/authorized_keys /home/ubuntu/.ssh/
+
+    - name: restart server
+      sudo: yes
+      shell: reboot

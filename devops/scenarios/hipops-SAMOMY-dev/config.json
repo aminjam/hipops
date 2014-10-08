@@ -14,8 +14,7 @@
     "type": "db",
     "repository": {
       "branch": "master",
-      "sshUrl": "github.com/aminjam/hipops-SAMOMY-mysql.git",
-      "sshKey": "/Users/ajamali/.ssh/id_rsa"
+      "sshUrl": "github.com/aminjam/hipops-SAMOMY-mysql.git"
     },
     "cred": {
       "dbName": "sailsjs_hello_api",
@@ -24,7 +23,7 @@
     },
     "customizations": [{
       "src": "../../customizations/mysql/run.sh",
-      "dest": "~/mysql-run.sh",
+      "dest": "mysql-run.sh",
       "mode": 744
     }],
     "image": "tutum/mysql:5.5",
@@ -63,7 +62,7 @@
     "inventory": "tag_App-Role_SAMOMY-DEV",
     "apps": ["{{index .Apps 1}}"],
     "actions": [{
-      "params": "-v {{.App.Dest}}:/var/lib/mysql -v /home/ubuntu/mysql-run.sh:/run.sh -p 9991:{{index .App.Ports 0}} -e MYSQL_USER={{.App.Cred.Username}} -e MYSQL_PASS={{.App.Cred.Password}} -d {{.App.Image}} /run.sh {{.App.Cred.DbName}}"
+      "params": "-v {{.App.Dest}}:/var/lib/mysql -v {{.App.Dest}}/mysql-run.sh:/run.sh -p 9991:{{index .App.Ports 0}} -e MYSQL_USER={{.App.Cred.Username}} -e MYSQL_PASS={{.App.Cred.Password}} -d {{.App.Image}} /run.sh {{.App.Cred.DbName}}"
     }]
   }, {
     "inventory": "tag_App-Role_SAMOMY-DEV",

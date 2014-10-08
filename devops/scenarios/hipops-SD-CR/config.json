@@ -12,7 +12,7 @@
   }, {
     "name": "registrator",
     "type": "global",
-    "image": "progrium/registrator"
+    "image": "progrium/registrator:latest"
   }],
   "playbooks": [{
     "inventory": "tag_SD-Role_CONSUL-SERVER-00",

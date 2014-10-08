@@ -1,0 +1,12 @@
+---
+- name: update server
+  sudo: yes
+  apt: update_cache=yes
+
+- name: install docker
+  sudo: yes
+  shell: curl -s https://get.docker.io/ubuntu/ | sudo sh
+
+- name: add user to docker group
+  sudo: yes
+  shell: gpasswd -a {{ user }} docker
