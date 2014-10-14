@@ -1,5 +1,5 @@
 # DOCKER-VERSION 1.2.0
-FROM ubuntu:14.04
+FROM ubuntu:latest
 MAINTAINER Amin Jams "aminjam@outlook.com"
 
 RUN apt-get update && \
