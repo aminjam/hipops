@@ -3,7 +3,7 @@
 
 hipops is an agentless orchestration configuration tool for servers running [Docker](https://github.com/docker/docker) containers, whether it's local or remote.
 It's a JSON-based configuration of your environments. I created hipops as a wrapper around the popular orchestration tool, [ansible](https://github.com/ansible/ansible), for ease of use.
-Ansible Playbooks are powerful for managing configurations and deployments for the remote machines or local VMs. When it comes to docker deployments in Playbooks, hipops will allow you to orchestrate the cluster of your servers (`CoreOS`, `ubuntu`, etc...) with a configuration template locally in VMs and then remotely to AWS or other providers. `hipops` works with [CoreOS](https://CoreOS.com/), [ubuntu](http://www.ubuntu.com/), and other linux servers.
+Ansible Playbooks are powerful for managing configurations and deployments for the remote machines or local VMs. When it comes to docker deployments, there is a need for a configurable orchestration of containers. `hipops` will allow you to orchestrate the cluster of your servers (`CoreOS`, `ubuntu`, etc...) with a configuration template locally in VMs and then remotely to AWS or other providers. `hipops` works with [CoreOS](https://CoreOS.com/), [ubuntu](http://www.ubuntu.com/), and other linux servers.
 
 ##Concept
 The idea behind `hipops` configuration is to define a series of `apps` and re-use them in `playbooks`, so you just focus on the orchestration of your containers, whether across different physical hosts or the same host. Here is a sample configuration for `hipops`:
