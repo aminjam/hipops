@@ -2,8 +2,10 @@
   "id": "hipops-ELKF",
   "description": "(E)elasticsearch + (L)logstash + (K)kabana + (F)logstash-forwarder",
   "env": "prod",
-  "user": "ubuntu",
   "dest": "/data",
+  "oses": [{
+    "user": "ubuntu"
+  }],
   "apps": [{
     "name": "elasticsearch-logstash",
     "type": "global",

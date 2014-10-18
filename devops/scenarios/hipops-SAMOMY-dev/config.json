@@ -4,6 +4,10 @@
   "env": "dev",
   "user": "ubuntu",
   "dest": "/data",
+  "oses": [{
+    "user": "core",
+    "python_interpreter": "PATH=/home/core/bin:$PATH python"
+  }],
   "apps": [{
     "name": "mongo",
     "type": "db",
@@ -56,7 +60,7 @@
     "inventory": "tag_App-Role_SAMOMY-DEV",
     "apps": ["{{index .Apps 0}}"],
     "actions": [{
-      "params": "-v {{.App.Dest}}:/home/app -p 9990:{{index .App.Ports 0}} -d {{.App.Image}} /run.sh"
+      "params": "-v {{.App.Dest}}:/home/app -p 9990:{{index .App.Ports 0}} -e MONGO_OPTIONS='--smallfiles' -d {{.App.Image}} /run.sh"
     }]
   }, {
     "inventory": "tag_App-Role_SAMOMY-DEV",

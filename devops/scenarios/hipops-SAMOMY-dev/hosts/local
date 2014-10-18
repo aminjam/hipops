@@ -1,2 +1,2 @@
 [tag_App-Role_SAMOMY-DEV]
-172.20.21.10 ansible_connection=ssh
+172.17.8.101 ansible_connection=ssh

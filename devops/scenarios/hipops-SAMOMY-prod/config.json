@@ -2,8 +2,13 @@
   "id": "hipops-SAMOMY",
   "description": "(S)sailsJS-backend + (A)angular-frontend + (MO)mongodb + (MY)mysql",
   "env": "prod",
-  "user": "ubuntu",
   "dest": "/data",
+  "oses": [{
+    "user": "ubuntu"
+  }, {
+    "user": "core",
+    "python_interpreter": "PATH=/home/core/bin:$PATH python"
+  }],
   "apps": [{
     "name": "mongo",
     "type": "db",
@@ -14,8 +19,7 @@
     "type": "db",
     "repository": {
       "branch": "master",
-      "sshUrl": "github.com/aminjam/hipops-SAMOMY-mysql.git",
-      "sshKey": "/Users/ajamali/.ssh/id_rsa"
+      "sshUrl": "github.com/aminjam/hipops-SAMOMY-mysql.git"
     },
     "cred": {
       "dbName": "sailsjs_hello_api",
@@ -35,8 +39,7 @@
     "host": "hipops-samomy-backend.com",
     "repository": {
       "branch": "master",
-      "sshUrl": "github.com/aminjam/hipops-SAMOMY-backend.git",
-      "sshKey": "/Users/ajamali/.ssh/id_rsa"
+      "sshUrl": "github.com/aminjam/hipops-SAMOMY-backend.git"
     },
     "image": "aminjam/nodejs:latest",
     "ports": [3001]
@@ -55,6 +58,7 @@
   }],
   "playbooks": [{
     "inventory": "tag_App-Role_SAMOMY-prod-amb",
+    "user": "ubuntu",
     "actions": [{
       "image": "progrium/ambassadord",
       "params": "--name backends -v /var/run/docker.sock:/var/run/docker.sock -d progrium/ambassadord --omnimode"
@@ -64,18 +68,21 @@
     }]
   }, {
     "inventory": "tag_App-Role_SAMOMY-prod-mongo",
+    "user": "ubuntu",
     "apps": ["{{index .Apps 0}}"],
     "actions": [{
       "params": "-v {{.App.Dest}}:/home/app -p 27017:{{index .App.Ports 0}} -e SERVICE_NAME={{.App.Name}} -e BACKEND_{{index .App.Ports 0}}={{.App.Name}}.service.consul --link backends:backends -d {{.App.Image}} /run.sh"
     }]
   }, {
     "inventory": "tag_App-Role_SAMOMY-prod-mysql",
+    "user": "ubuntu",
     "apps": ["{{index .Apps 1}}"],
     "actions": [{
       "params": "-v {{.App.Dest}}:/var/lib/mysql -v {{.App.Dest}}/mysql-run.sh:/run.sh -p 3306:{{index .App.Ports 0}} -e SERVICE_NAME={{.App.Name}} -e BACKEND_{{index .App.Ports 0}}={{.App.Name}}.service.consul -e MYSQL_USER={{.App.Cred.Username}} -e MYSQL_PASS={{.App.Cred.Password}} --link backends:backends -d {{.App.Image}} /run.sh {{.App.Cred.DbName}}"
     }]
   }, {
     "inventory": "tag_App-Role_SAMOMY-prod-app",
+    "user": "core",
     "apps": ["{{index .Apps 2}}"],
     "state": "deploying",
     "actions": [{
@@ -83,6 +90,7 @@
     }]
   }, {
     "inventory": "tag_App-Role_SAMOMY-prod-app",
+    "user": "core",
     "apps": ["{{index .Apps 3}}"],
     "state": "deploying",
     "actions": [{
@@ -90,6 +98,7 @@
     }]
   }, {
     "inventory": "tag_App-Role_SAMOMY-prod-app",
+    "user": "core",
     "actions": [{
       "image": "aminjam/nginx-proxy",
       "params": "--name nginx-proxy -v /var/run/docker.sock:/tmp/docker.sock -p 80:80 -d aminjam/nginx-proxy"

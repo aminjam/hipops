@@ -1,7 +1,9 @@
 #hipops
 **Docker Orchestration Configuration**  
 
-hipops is intended to help with the configuration of your servers running [Docker](https://github.com/docker/docker) containers, whether it's local or remote. It's a JSON-based configuration of your environments. I created hipops as a wrapper around the popular orchestration tool, [ansible](https://github.com/ansible/ansible), for ease of use. Ansible Playbooks are powerful for managing configurations and deployments for the remote machines or local VMs. When it comes to docker deployments in Playbooks, hipops will allow you to orchestrate your servers with a configuration template locally in VMs and then remotely to AWS or other providers. .
+hipops is an agentless orchestration configuration tool for servers running [Docker](https://github.com/docker/docker) containers, whether it's local or remote.
+It's a JSON-based configuration of your environments. I created hipops as a wrapper around the popular orchestration tool, [ansible](https://github.com/ansible/ansible), for ease of use.
+Ansible Playbooks are powerful for managing configurations and deployments for the remote machines or local VMs. When it comes to docker deployments in Playbooks, hipops will allow you to orchestrate the cluster of your servers (`CoreOS`, `ubuntu`, etc...) with a configuration template locally in VMs and then remotely to AWS or other providers. `hipops` works with [CoreOS](https://CoreOS.com/), [ubuntu](http://www.ubuntu.com/), and other linux servers.
 
 ##Concept
 The idea behind `hipops` configuration is to define a series of `apps` and re-use them in `playbooks`, so you just focus on the orchestration of your containers, whether across different physical hosts or the same host. Here is a sample configuration for `hipops`:
@@ -10,8 +12,10 @@ The idea behind `hipops` configuration is to define a series of `apps` and re-us
   "id": "demo",
   "description": "my demo",
   "env": "dev",
-  "user": "ubuntu",
   "dest": "/data",
+  "oses": [{
+    "user": "ubuntu"
+  }],
   "apps": [{
     "name": "mongo",
     "type": "db",
@@ -50,7 +54,7 @@ I am defining two apps: `mongo` and `backend-api`, and then I define the first `
 - [Getting Started Guide](https://github.com/aminjam/hipops/wiki/Getting-Started)
 - [JSONish Configuration explained](https://github.com/aminjam/hipops/wiki/JSONish-Configuration)
 - Checkout `devops` folder for sample scenarios for:
-  - **SAMOMY-dev**: (S)sailsJS-backend + (A)angular-frontend + (MO)mongodb + (MY)mysql on a single host
-  - **SAMOMY-prod**: (S)sailsJS-backend + (A)angular-frontend + (MO)mongodb + (MY)mysql linked together on three different hosts
-  - **SD-CR**: (S)service (D)discovery with (C)consul + (R)registrator on all of your servers
-  - **ELKF-prod**: (E)elasticsearch + (L)logstash + (K)kabana + (F)logstash-forwarder for aggregating the logs across all containers
+  - **SAMOMY-dev**: (S)sailsJS-backend + (A)angular-frontend + (MO)mongodb + (MY)mysql on a single host (CoreOS)
+  - **SAMOMY-prod**: (S)sailsJS-backend + (A)angular-frontend + (MO)mongodb + (MY)mysql linked together on three different hosts (2 ubuntu, 1 CoreOS)
+  - **SD-CR**: (S)service (D)discovery with (C)consul + (R)registrator on all of your servers (ubuntu)
+  - **ELKF-prod**: (E)elasticsearch + (L)logstash + (K)kabana + (F)logstash-forwarder for aggregating the logs across all containers (ubuntu)

@@ -2,8 +2,10 @@
   "id": "hipops-SD-CR",
   "description": "(S)service (D)discovery with (C)consul + (R)registrator",
   "env": "dev",
-  "user": "ubuntu",
   "dest": "/data",
+  "oses": [{
+    "user": "ubuntu"
+  }],
   "apps": [{
     "name": "consul",
     "type": "global",

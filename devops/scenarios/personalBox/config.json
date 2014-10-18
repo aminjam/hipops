@@ -1,6 +1,10 @@
 {
   "id": "personal",
   "env": "prod",
+  "dest": "/data",
+  "oses": [{
+    "user": "ubuntu"
+  }],
   "apps": [{
     "name": "blog.aminjam.com",
     "type": "nodejs",

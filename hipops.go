@@ -21,14 +21,19 @@ import (
 )
 
 type Scenario struct {
-	Env, Id, Description,
-	User, Dest string
-	Apps      []App
-	Playbooks []Playbook
+	Env, Id, Description, Dest string
+	Oses                       []Os
+	Apps                       []App
+	Playbooks                  []Playbook
 }
+
+type Os struct {
+	Name, User, Python_interpreter string
+}
+
 type App struct {
-	Host, Image, Name, Dest,
-	Type, User string
+	Host, Image, Name,
+	Dest, Type string
 	Ports          []int
 	Cred           Cred
 	Customizations []Customization
@@ -61,7 +66,7 @@ type Cred struct {
 
 type Playbook struct {
 	Name, Play, State,
-	Inventory string
+	Inventory, User string
 	Actions []DockerAction
 	Apps    []string
 }
@@ -74,11 +79,12 @@ type DockerAction struct {
 }
 
 type AnsibleVars struct {
-	Dest       string          `json:"dest"`
-	Inventory  string          `json:"inventory"`
-	Repository Repository      `json:"repository"`
-	Files      []Customization `json:"files"`
-	Containers []DockerAction  `json:"containers"`
+	Dest               string          `json:"dest"`
+	Inventory          string          `json:"inventory"`
+	Python_interpreter string          `json:"ansible_python_interpreter,omitempty"`
+	Repository         Repository      `json:"repository"`
+	Files              []Customization `json:"files"`
+	Containers         []DockerAction  `json:"containers"`
 }
 
 func (av *AnsibleVars) parseActions(scenario *Scenario, p *Playbook, appString string) {
@@ -153,7 +159,31 @@ func main() {
 		ansibleVars := AnsibleVars{}
 		repo := Repository{SshKey: *flGitKey}
 		ansibleVars.Repository = repo
-		user := scenario.User
+
+		os := Os{}
+		if len(scenario.Oses) == 0 {
+			check(errors.New("oses is unkown."))
+		} else if len(scenario.Oses) == 1 {
+			if p.User != "" && p.User != scenario.Oses[0].User {
+				os.User = p.User
+			} else {
+				os = scenario.Oses[0]
+			}
+		} else {
+			if p.User == "" {
+				check(errors.New("multiple Oses are defined, but playbook lack the user."))
+			}
+			for _, k := range scenario.Oses {
+				if k.User == p.User {
+					os = k
+					break
+				}
+			}
+			if os.User == "" {
+				os.User = p.User
+			}
+		}
+		ansibleVars.Python_interpreter = os.Python_interpreter
 
 		if p.State == "" {
 			p.State = "running"
@@ -209,10 +239,6 @@ func main() {
 						ansibleVars.Files = make([]Customization, 0)
 					}
 
-					if app.User != "" {
-						user = app.User
-					}
-
 					if app.Repository.SshUrl != "" {
 						if ansibleVars.Repository.SshKey != "" {
 							app.Repository.SshKey = ansibleVars.Repository.SshKey
@@ -239,7 +265,7 @@ func main() {
 					RunCmd("ansible-playbook",
 						fmt.Sprintf("%s%s", playbooksPath, p.Play),
 						"-i", *flHosts,
-						"-u", user,
+						"-u", os.User,
 						"--private-key", *flPrivateKey,
 						"--extra-vars", "@"+fileName,
 						*flDebug,
@@ -259,7 +285,7 @@ func main() {
 			RunCmd("ansible-playbook",
 				fmt.Sprintf("%s%s", playbooksPath, p.Play),
 				"-i", *flHosts,
-				"-u", user,
+				"-u", os.User,
 				"--private-key", *flPrivateKey,
 				"--extra-vars", "@"+fileName,
 				*flDebug,

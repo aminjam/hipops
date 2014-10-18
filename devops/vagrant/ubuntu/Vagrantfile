@@ -12,23 +12,23 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
      p.customize ['modifyvm', :id, '--memory', '1024', '--ioapic', 'on']
   end
 
-  config.vm.define "n1" do |n|
-      n.vm.hostname = "n1"
+  config.vm.define "ubuntu-01" do |n|
+      n.vm.hostname = "ubuntu-01"
       n.vm.network "private_network", ip: "172.20.21.10"
   end
 
-  config.vm.define "n2" do |n|
-      n.vm.hostname = "n2"
+  config.vm.define "ubuntu-02" do |n|
+      n.vm.hostname = "ubuntu-02"
       n.vm.network "private_network", ip: "172.20.21.11"
   end
 
-  config.vm.define "n3" do |n|
-      n.vm.hostname = "n3"
+  config.vm.define "ubuntu-03" do |n|
+      n.vm.hostname = "ubuntu-03"
       n.vm.network "private_network", ip: "172.20.21.12"
   end
 
-  config.vm.define "n4" do |n|
-      n.vm.hostname = "n4"
+  config.vm.define "ubuntu-04" do |n|
+      n.vm.hostname = "ubuntu-04"
       n.vm.network "private_network", ip: "172.20.21.13"
   end
 
