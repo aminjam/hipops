@@ -58,3 +58,4 @@ I am defining two apps: `mongo` and `backend-api`, and then I define the first `
   - **SAMOMY-prod**: (S)sailsJS-backend + (A)angular-frontend + (MO)mongodb + (MY)mysql linked together on three different hosts (2 ubuntu, 1 CoreOS)
   - **SD-CR**: (S)service (D)discovery with (C)consul + (R)registrator on all of your servers (ubuntu)
   - **ELKF-prod**: (E)elasticsearch + (L)logstash + (K)kabana + (F)logstash-forwarder for aggregating the logs across all containers (ubuntu)
+  - **CBnodejs-demo**: (CB)couchbase-server + nodejs demo app (CoreOS)

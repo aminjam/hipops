@@ -2,11 +2,14 @@
 core-01 ansible_ssh_host=172.17.8.101
 core-02 ansible_ssh_host=172.17.8.102
 core-03 ansible_ssh_host=172.17.8.103
+core-04 ansible_ssh_host=172.17.8.104
+
 
 [coreos]
 core-01
 core-02
 core-03
+core-04
 
 [coreos:vars]
 ansible_connection=ssh
