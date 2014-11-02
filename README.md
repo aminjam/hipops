@@ -53,9 +53,9 @@ I am defining two apps: `mongo` and `backend-api`, and then I define the first `
 ##Next steps
 - [Getting Started Guide](https://github.com/aminjam/hipops/wiki/Getting-Started)
 - [JSONish Configuration explained](https://github.com/aminjam/hipops/wiki/JSONish-Configuration)
-- Checkout `devops` folder for sample scenarios for:
-  - **SAMOMY-dev**: (S)sailsJS-backend + (A)angular-frontend + (MO)mongodb + (MY)mysql on a single host (CoreOS)
-  - **SAMOMY-prod**: (S)sailsJS-backend + (A)angular-frontend + (MO)mongodb + (MY)mysql linked together on three different hosts (2 ubuntu, 1 CoreOS)
-  - **SD-CR**: (S)service (D)discovery with (C)consul + (R)registrator on all of your servers (ubuntu)
-  - **ELKF-prod**: (E)elasticsearch + (L)logstash + (K)kabana + (F)logstash-forwarder for aggregating the logs across all containers (ubuntu)
-  - **CBnodejs-demo**: (CB)couchbase-server + nodejs demo app (CoreOS)
+- Checkout [devops](https://github.com/aminjam/hipops/tree/master/devops) folder for sample scenarios for:
+  - [SAMOMY-dev](https://github.com/aminjam/hipops/tree/master/devops/scenarios/hipops-SAMOMY-dev) (S)sailsJS-backend + (A)angular-frontend + (MO)mongodb + (MY)mysql on a single host (CoreOS)
+  - [SAMOMY-prod](https://github.com/aminjam/hipops/tree/master/devops/scenarios/hipops-SAMOMY-prod) (S)sailsJS-backend + (A)angular-frontend + (MO)mongodb + (MY)mysql linked together on three different hosts (2 ubuntu, 1 CoreOS)
+  - [SD-CR](https://github.com/aminjam/hipops/tree/master/devops/scenarios/hipops-SD-CR) (S)service (D)discovery with (C)consul + (R)registrator on all of your servers (ubuntu)
+  - [ELKF-prod](https://github.com/aminjam/hipops/tree/master/devops/scenarios/hipops-ELKF-prod) (E)elasticsearch + (L)logstash + (K)kabana + (F)logstash-forwarder for aggregating the logs across all containers (ubuntu)
+  - [CBnodejs-demo](https://github.com/aminjam/hipops/tree/master/devops/scenarios/hipops-CBnodejs-demo) (CB)couchbase-server + nodejs demo app (CoreOS)
