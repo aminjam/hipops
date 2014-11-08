@@ -1,0 +1,51 @@
+{
+  "id": "hipops-CBServerSyncGateway-dev",
+  "description": "(CBServer)couchbase-server + Sync-Gateway",
+  "env": "dev",
+  "dest": "/data",
+  "oses": [{
+    "user": "core",
+    "python_interpreter": "PATH=/home/core/bin:$PATH python"
+  }],
+  "apps": [{
+    "name": "couchbase-server",
+    "type": "db",
+    "image": "aminjam/couchbase:latest",
+    "cred": {
+      "username": "Administrator",
+      "password": "password"
+    }
+  }, {
+    "name": "couchbase-sync-gateway",
+    "type": "db",
+    "host": "cbsync-gateway-demo.com",
+    "customizations": [{
+      "src": "https://gist.githubusercontent.com/aminjam/d5f7499c3cfadb963d6a/raw/940bb95b43db3255b5eb7ee4b46f185b6b1658ee/cb-sync-gatway.json",
+      "dest": "config.json"
+    }],
+    "image": "aminjam/couchbase-sync-gateway:latest",
+    "ports": [4984]
+  }],
+  "playbooks": [{
+    "inventory": "tag_App-Role_CB-SERVER-00",
+    "apps": ["{{index .Apps 0}}"],
+    "actions": [{
+      "params": "--net=host -v {{.App.Dest}}:/home/app -e COUCHBASE_USER={{.App.Cred.Username}} -e COUCHBASE_PASS={{.App.Cred.Password}} -e COUCHBASE_DATA=/home/app -d {{.App.Image}} cluster-init"
+    }, {
+      "params": "--name todos_bucket --rm {{.App.Image}} couchbase-cli bucket-create -c $COUCHBASE_SERVER:8091 -u {{.App.Cred.Username}} -p {{.App.Cred.Password}} --bucket=todos --bucket-ramsize=100"
+    }]
+  }, {
+    "inventory": "tag_App-Role_CB-SYNC-GATEWAY",
+    "apps": ["{{index .Apps 1}}"],
+    "state": "deploying",
+    "actions": [{
+      "params": "-v {{.App.Dest}}/config.json:/config.json -e VIRTUAL_HOST={{.App.Host}} -e VIRTUAL_PORT={{index .App.Ports 0}} -d {{.App.Image}} /config.json"
+    }]
+  }, {
+    "inventory": "tag_App-Role_CB-SYNC-GATEWAY",
+    "actions": [{
+      "image": "aminjam/nginx-proxy:tiny",
+      "params": "--name nginx-proxy -v /var/run/docker.sock:/tmp/docker.sock -p 80:80 -d aminjam/nginx-proxy:tiny"
+    }]
+  }]
+}
