@@ -6,7 +6,7 @@ This scenario is build to [todo-lite demo](https://github.com/couchbaselabs/Todo
 1. create a couchbase server
 2. deploy sync_gateway with nginx-proxy to host the sync endpoint at `cbsync-gateway-demo.com`
 
-[Getting Started Guide & Setup](https://github.com/aminjam/hipops/wiki/Getting-Started#running-hipops-CBServerSyncGateway-dev)
+[Getting Started Guide & Setup](https://github.com/aminjam/hipops/wiki/Getting-Started#running-hipops-cbserversyncgateway-dev)
 
 ### Connecting with [TodoLite-PhoneGap](https://github.com/couchbaselabs/TodoLite-PhoneGap) with changing `js/index.js`:
 
