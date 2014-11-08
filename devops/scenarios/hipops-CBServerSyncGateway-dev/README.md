@@ -1,6 +1,6 @@
 ## Running hipops-CBServerSyncGateway-dev
 **(CBServer)couchbase-server + Sync-Gateway (CoreOS)**.
-This scenario is build for [todo-lite demo](https://github.com/couchbaselabs/TodoLite-PhoneGap) and will:
+This scenario is built for [todo-lite demo](https://github.com/couchbaselabs/TodoLite-PhoneGap) and will:
 
 
 1. create a couchbase server
