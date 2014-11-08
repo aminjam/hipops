@@ -1,6 +1,6 @@
 ## Running hipops-CBServerSyncGateway-dev
 **(CBServer)couchbase-server + Sync-Gateway (CoreOS)**.
-This scenario is build to [todo-lite demo](https://github.com/couchbaselabs/TodoLite-PhoneGap) and will:
+This scenario is build for [todo-lite demo](https://github.com/couchbaselabs/TodoLite-PhoneGap) and will:
 
 
 1. create a couchbase server
@@ -12,4 +12,4 @@ This scenario is build to [todo-lite demo](https://github.com/couchbaselabs/Todo
 
   - `REMOTE_SYNC_URL` to be `cbsync-gateway-demo.com`
 
-  - `FacebookInAppBrowser.settings.appId` with your FacebookAppId in with `
+  - `FacebookInAppBrowser.settings.appId` with your FacebookAppId
