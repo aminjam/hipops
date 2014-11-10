@@ -1,0 +1,8 @@
+---
+- name:  hipops playbook
+  hosts: "{{ inventory }}"
+  tasks:
+    - include: tasks/sync-repository.yml dest="{{ dest }}" repository="{{ repository }}"
+      when: repository.sshUrl != ""
+    - {include: tasks/copy-files.yml, files: "{{ files }}" }
+    - {include: tasks/docker.yml, containers: "{{ containers }}" }

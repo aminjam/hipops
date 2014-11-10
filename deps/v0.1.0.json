@@ -1,0 +1,8 @@
+{
+  "ImportPath": "github.com/aminjam/hipops",
+  "GoVersion": "go1.3.3",
+  "Deps": [{
+    "ImportPath": "github.com/mitchellh/cli",
+    "Rev": "e3c2e3d39391e9beb9660ccd6b4bd9a2f38dd8a0"
+  }]
+}

@@ -1,0 +1,16 @@
+---
+- name: ensure dest path
+  sudo: yes
+  file: path={{ item.destFolder }} state=directory
+  when: item.destFolder != ""
+  with_items: files
+
+- name: ensure write permission
+  sudo: yes
+  shell: chown -R {{ ansible_user_id }}:{{ ansible_user_id }} {{ item.destFolder }}
+  when: item.destFolder != ""
+  with_items: files
+
+- name: moving files to destination
+  copy: src="{{ item.src }}" dest="{{ item.dest }}" mode="{{ item.mode }}"
+  with_items: files
