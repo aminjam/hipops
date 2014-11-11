@@ -1,10 +1,11 @@
 package main
 
 import (
-	"github.com/aminjam/hipops/command"
-	"github.com/mitchellh/cli"
 	"os"
 	"os/signal"
+
+	"github.com/aminjam/hipops/command"
+	"github.com/mitchellh/cli"
 )
 
 // Commands is the mapping of all the available Serf commands.

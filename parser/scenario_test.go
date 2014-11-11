@@ -2,8 +2,9 @@ package parser
 
 import (
 	"fmt"
-	"github.com/aminjam/hipops/utilities"
 	"testing"
+
+	"github.com/aminjam/hipops/utilities"
 )
 
 const scenario = `
@@ -36,13 +37,63 @@ const playbooks = `
   }]
 `
 
-func TestScenarioParse(t *testing.T) {
+func TestScenarioParse_HappyPath(t *testing.T) {
 	config := []byte(fmt.Sprintf("{%s%s%s%s}", scenario, oses, apps, playbooks))
-	var scenario Scenario
-	actions, err := scenario.Parse(config)
+	var sc Scenario
+	actions, err := sc.Parse(config)
 
 	spec := utilities.Spec(t)
 	spec.Expect(err).ToEqual(nil)
 	spec.Expect(actions[0].User).ToEqual("core")
 
+}
+
+func TestScenarioParse_UnhappPath(t *testing.T) {
+
+	spec := utilities.Spec(t)
+
+	const playbooks_missing_app = `
+  ,"playbooks": [{
+    "inventory": "tag_App-Role_SAMOMY-DEV",
+    "apps": ["{{index .Apps 1}}"],
+    "actions": [{
+      "params": "-v {{.App.Dest}}:/home/app -p 9990:{{index .App.Ports 0}} -e MONGO_OPTIONS='--smallfiles' -d {{.App.Image}} /run.sh"
+    }]
+  }]
+`
+	config := []byte(fmt.Sprintf("{%s%s%s%s}", scenario, oses, apps, playbooks_missing_app))
+	var sc0 Scenario
+	_, err := sc0.Parse(config)
+	spec.Expect(err.Error()).ToEqual(utilities.APP_NOT_FOUND)
+
+	config = []byte(fmt.Sprintf("{%s%s%s}", scenario, apps, playbooks_missing_app))
+	var sc1 Scenario
+	_, err = sc1.Parse(config)
+	spec.Expect(err.Error()).ToEqual(utilities.UNKOWN_OSES)
+
+	const scenario_unkown_dest = `
+  "id": "0",
+  "description": "",
+  "env": "test"
+`
+	config = []byte(fmt.Sprintf("{%s%s%s%s}", scenario_unkown_dest, oses, apps, playbooks))
+	var sc2 Scenario
+	_, err = sc2.Parse(config)
+	spec.Expect(err.Error()).ToEqual(utilities.UNKNOWN_SCENARIO_DEST)
+
+	const apps_invalid_repo = `
+  ,"apps": [{
+    "name": "mongo",
+    "type": "db",
+    "image": "aminjam/mongodb:latest",
+    "repository":{
+      "sshUrl": "git@github.com:aminjam/beersample-node.git"
+    },
+    "ports": [27017]
+  }]
+`
+	config = []byte(fmt.Sprintf("{%s%s%s%s}", scenario, oses, apps_invalid_repo, playbooks))
+	var sc3 Scenario
+	_, err = sc3.Parse(config)
+	spec.Expect(err.Error()).ToEqual(utilities.INVALID_REPOSITORY)
 }

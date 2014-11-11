@@ -2,12 +2,13 @@ package command
 
 import (
 	"flag"
-	"github.com/aminjam/hipops/parser"
-	"github.com/aminjam/hipops/utilities"
-	"github.com/mitchellh/cli"
 	"io/ioutil"
 	"path/filepath"
 	"strings"
+
+	"github.com/aminjam/hipops/parser"
+	"github.com/aminjam/hipops/utilities"
+	"github.com/mitchellh/cli"
 )
 
 type params struct {

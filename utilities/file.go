@@ -2,8 +2,12 @@ package utilities
 
 import (
 	"fmt"
+	"io"
+	"math/rand"
+	"net/http"
 	"os"
 	"strings"
+	"time"
 )
 
 func CleanupTempFiles(suffix string) {
@@ -24,4 +28,25 @@ func CleanupTempFiles(suffix string) {
 			}
 		}
 	}
+}
+
+func DownloadFile(url string, suffix string) (string, error) {
+	rand.Seed(time.Now().UnixNano())
+	fileName := fmt.Sprintf("/tmp/hipops-%s-%v", suffix, rand.Intn(1000000))
+	fmt.Println("Downloading file...")
+
+	output, err := os.Create(fileName)
+	defer output.Close()
+
+	response, err := http.Get(url)
+	defer response.Body.Close()
+	if err != nil {
+		return "", err
+	}
+
+	_, err = io.Copy(output, response.Body)
+	if err != nil {
+		return "", err
+	}
+	return fileName, nil
 }
