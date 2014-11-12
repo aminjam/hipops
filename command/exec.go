@@ -7,9 +7,13 @@ import (
 	"strings"
 
 	"github.com/aminjam/hipops/parser"
+	"github.com/aminjam/hipops/plugins"
+	"github.com/aminjam/hipops/plugins/ansible"
 	"github.com/aminjam/hipops/utilities"
 	"github.com/mitchellh/cli"
 )
+
+var Plugins []plugins.Plugin
 
 type params struct {
 	config, gitKey, plugin,
@@ -89,4 +93,8 @@ Options:
 	-playbook-path=""              Ansible Playbook Path (Optional)
 `
 	return strings.TrimSpace(helpText)
+}
+
+func init() {
+	Plugins = []plugins.Plugin{ansible.Instance}
 }

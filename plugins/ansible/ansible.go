@@ -1,15 +1,13 @@
-package plugins
+package ansible
 
-import (
-	"github.com/aminjam/hipops/parser"
-)
+import "github.com/aminjam/hipops/plugins"
 
-var Ansible parser.Plugin
+var Instance plugins.Plugin
 
 type instance struct{}
 
 func init() {
-	Ansible = &instance{}
+	Instance = &instance{}
 }
 func (i *instance) Mask() error {
 	return nil
