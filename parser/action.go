@@ -14,13 +14,19 @@ type Action struct {
 	PythonInterpreter string           `json:"ansible_python_interpreter,omitempty"`
 	Repository        *repository      `json:"repository"`
 	Files             []*customization `json:"files"`
-	Containers        []*docker        `json:"containers"`
+	Containers        []*container     `json:"containers"`
 }
 
-func (a *Action) configureApp(app *app) error {
-	return nil
+func (a *Action) fromApp(app *app) {
+	a.Dest = app.Dest
+	a.Repository = app.Repository
+	a.Files = app.Customizations
 }
-func (a *Action) configureOS(oses []*os, user string) error {
+func (a *Action) fromPlaybook(p *playbook) {
+	a.Play = p.Play
+	a.Containers = p.Containers
+}
+func (a *Action) fromOS(oses []*os, user string) error {
 	os := &os{}
 	if len(oses) == 0 {
 		return errors.New(utilities.UNKOWN_OSES)

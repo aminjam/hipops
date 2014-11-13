@@ -13,7 +13,7 @@ import (
 	"github.com/mitchellh/cli"
 )
 
-var Plugins []plugins.Plugin
+var myPlugins []plugins.Plugin
 
 type params struct {
 	config, gitKey, plugin,
@@ -62,7 +62,7 @@ func (c *ExecCommand) Run(args []string) int {
 	utilities.CheckErr(err)
 
 	var scenario parser.Scenario
-	_, err = scenario.Parse(config)
+	_, err = scenario.Parse(config, myPlugins[0])
 	utilities.CheckErr(err)
 
 	c.Ui.Info(scenario.Id)
@@ -96,5 +96,5 @@ Options:
 }
 
 func init() {
-	Plugins = []plugins.Plugin{ansible.Instance}
+	myPlugins = []plugins.Plugin{ansible.Instance}
 }

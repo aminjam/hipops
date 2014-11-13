@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 
+	"github.com/aminjam/hipops/plugins"
 	"github.com/aminjam/hipops/utilities"
 )
 
@@ -96,15 +98,29 @@ type cred struct {
 type playbook struct {
 	Name, Play, State,
 	Inventory, User string
-	Actions []*docker
-	Apps    []string
+	Containers []*container
+	Apps       []string
 }
 
-type docker struct {
-	Image  string `json:"image"`
+type container struct {
 	Params string `json:"params"`
 	Name   string `json:"name"`
 	State  string `json:"state"`
+}
+
+func (c *container) configure(sc *Scenario, appString string, plugin plugins.Plugin) {
+	masked := plugin.Mask(c.Params)
+	parsed := utilities.ParseTemplate(masked, sc, appString)
+	unmask := plugin.Unmask(parsed)
+	c.Params = utilities.ParseEnvFlags(unmask)
+	//configure name
+	var p = regexp.MustCompile(`--name\s.+\s`)
+	match := p.FindString(c.Params)
+	if match != "" {
+		c.Name = strings.Split(p.FindString(c.Params), " ")[1]
+	} else {
+		c.Params = fmt.Sprintf("--name %s %s", c.Name, c.Params)
+	}
 }
 
 type Scenario struct {
@@ -115,7 +131,7 @@ type Scenario struct {
 	Playbooks []*playbook
 }
 
-func (sc *Scenario) Parse(config []byte) ([]*Action, error) {
+func (sc *Scenario) Parse(config []byte, plugin plugins.Plugin) ([]*Action, error) {
 	err := json.Unmarshal(config, sc)
 	if err != nil {
 		return nil, err
@@ -132,15 +148,18 @@ func (sc *Scenario) Parse(config []byte) ([]*Action, error) {
 		}
 	}
 
-	actions, counter := make([]*Action, sc.countActions()), 0
+	actions, counter := make([]*Action, sc.countContainers()), 0
 
 	for _, p := range sc.Playbooks {
 		action := &Action{}
-		if err = action.configureOS(sc.Oses, p.User); err != nil {
+		if err = action.fromOS(sc.Oses, p.User); err != nil {
 			return nil, err
 		}
 		if p.State == "" {
 			p.State = utilities.DEFAULT_APP_STATE
+		}
+		if p.Play == "" {
+			p.Play = plugin.DefaultPlay()
 		}
 
 		if len(p.Apps) != 0 {
@@ -150,12 +169,16 @@ func (sc *Scenario) Parse(config []byte) ([]*Action, error) {
 				if err != nil {
 					return nil, err
 				}
-				if err = action.configureApp(app); err != nil {
-					return nil, err
+				for i, _ := range p.Containers {
+					p.Containers[i].Name = p.Name
+					if p.Containers[i].State != "" {
+						p.Containers[i].State = p.State
+					}
+					p.Containers[i].configure(sc, appString, plugin)
 				}
+				action.fromApp(app)
 			}
 		}
-		action.Play = p.Play
 		fmt.Println("USER", action.User, action.PythonInterpreter)
 		actions[counter] = action
 		counter++
@@ -175,7 +198,7 @@ func (sc *Scenario) findApp(name string) (*app, error) {
 	}
 	return nil, errors.New(utilities.APP_NOT_FOUND)
 }
-func (sc *Scenario) countActions() int {
+func (sc *Scenario) countContainers() int {
 	total := 0
 	for _, p := range sc.Playbooks {
 		count := len(p.Apps)
