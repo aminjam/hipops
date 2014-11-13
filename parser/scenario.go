@@ -177,6 +177,7 @@ func (sc *Scenario) Parse(config []byte, plugin plugins.Plugin) ([]*Action, erro
 					p.Containers[i].configure(sc, appString, plugin)
 				}
 				action.fromApp(app)
+				action.fromPlaybook(p)
 			}
 		}
 		fmt.Println("USER", action.User, action.PythonInterpreter)

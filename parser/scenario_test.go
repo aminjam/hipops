@@ -42,7 +42,7 @@ var testPlugin plugins.Plugin
 
 type instance struct{}
 
-func (i *instance) DefaultPlay() string        { return "" }
+func (i *instance) DefaultPlay() string        { return "test.play" }
 func (i *instance) Mask(input string) string   { return input }
 func (i *instance) Unmask(input string) string { return input }
 func init()                                    { testPlugin = &instance{} }
@@ -55,10 +55,13 @@ func TestScenarioParse_HappyPath(t *testing.T) {
 	spec := utilities.Spec(t)
 	spec.Expect(err).ToEqual(nil)
 	spec.Expect(actions[0].User).ToEqual("core")
+	spec.Expect(actions[0].Play).ToEqual("test.play")
+	spec.ExpectString(actions[0].Containers[0].Params).ToContain("27017")
+	spec.ExpectString(actions[0].Containers[0].Params).ToContain("--name 0-db-mongo")
 
 }
 
-func TestScenarioParse_UnhappPath(t *testing.T) {
+func TestScenarioParse_UnhappyPath(t *testing.T) {
 
 	spec := utilities.Spec(t)
 
