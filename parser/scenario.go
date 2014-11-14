@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"regexp"
 	"strings"
 
 	"github.com/aminjam/hipops/plugins"
@@ -20,10 +19,15 @@ type app struct {
 	Dest, Type string
 	Ports          []int
 	Cred           *cred
-	Customizations []*customization
-	Repository     *repository
+	Customizations []*plugins.Customization
+	Repository     *plugins.Repository
 }
 
+func (a *app) toAction(action *plugins.Action) {
+	action.Dest = a.Dest
+	action.Repository = a.Repository
+	action.Files = a.Customizations
+}
 func (a *app) configure(sc *Scenario) error {
 	if a.Type == "" {
 		a.Type = utilities.DEFAULT_APP_TYPE
@@ -36,58 +40,15 @@ func (a *app) configure(sc *Scenario) error {
 	}
 	a.Dest = strings.TrimSuffix(a.Dest, "/")
 	for c, _ := range a.Customizations {
-		if err := a.Customizations[c].configure(sc.Suffix, a.Dest); err != nil {
+		if err := a.Customizations[c].Configure(sc.Suffix, a.Dest); err != nil {
 			return err
 		}
 	}
 	if a.Repository != nil {
-		if err := a.Repository.configure(); err != nil {
+		if err := a.Repository.Configure(); err != nil {
 			return err
 		}
 	}
-	return nil
-}
-
-type repository struct {
-	Branch string `json:"branch"`
-	SshUrl string `json:"sshUrl"`
-	SshKey string `json:"sshKey"`
-	Folder string `json:"folder"`
-}
-
-func (r *repository) configure() (err error) {
-	if strings.Contains(r.SshUrl, "@") || !strings.Contains(r.SshUrl, ".git") {
-		err = errors.New(utilities.INVALID_REPOSITORY)
-	}
-	if r.Branch == "" {
-		r.Branch = utilities.DEFAULT_APP_BRANCH
-	}
-	return
-}
-
-type customization struct {
-	Src        string `json:"src"`
-	Dest       string `json:"dest"`
-	DestFolder string `json:"destFolder"`
-	Mode       int    `json:"mode"`
-}
-
-func (c *customization) configure(suffix string, appDest string) (err error) {
-	if strings.HasPrefix(c.Src, "http") {
-		c.Src, err = utilities.DownloadFile(c.Src, suffix)
-		if err != nil {
-			return
-		}
-	} else if !strings.HasPrefix(c.Src, "/") {
-		c.Src = "@BASEDIR/" + c.Src
-	}
-	if c.Mode == 0 {
-		c.Mode = 400
-	}
-	if !strings.HasPrefix(c.Dest, "~") || !strings.HasPrefix(c.Dest, "/") {
-		c.Dest = fmt.Sprintf("%s/%s", appDest, c.Dest)
-	}
-	c.DestFolder = c.Dest[:strings.LastIndex(c.Dest, "/")]
 	return nil
 }
 
@@ -98,29 +59,14 @@ type cred struct {
 type playbook struct {
 	Name, Play, State,
 	Inventory, User string
-	Containers []*container
+	Containers []*plugins.Container
 	Apps       []string
 }
 
-type container struct {
-	Params string `json:"params"`
-	Name   string `json:"name"`
-	State  string `json:"state"`
-}
-
-func (c *container) configure(sc *Scenario, appString string, plugin plugins.Plugin) {
-	masked := plugin.Mask(c.Params)
-	parsed := utilities.ParseTemplate(masked, sc, appString)
-	unmask := plugin.Unmask(parsed)
-	c.Params = utilities.ParseEnvFlags(unmask)
-	//configure name
-	var p = regexp.MustCompile(`--name\s.+\s`)
-	match := p.FindString(c.Params)
-	if match != "" {
-		c.Name = strings.Split(p.FindString(c.Params), " ")[1]
-	} else {
-		c.Params = fmt.Sprintf("--name %s %s", c.Name, c.Params)
-	}
+func (p *playbook) toAction(a *plugins.Action) {
+	a.Name = p.Name
+	a.Play = p.Play
+	a.Containers = p.Containers
 }
 
 type Scenario struct {
@@ -131,7 +77,7 @@ type Scenario struct {
 	Playbooks []*playbook
 }
 
-func (sc *Scenario) Parse(config []byte, plugin plugins.Plugin) ([]*Action, error) {
+func (sc *Scenario) Parse(config []byte, plugin plugins.Plugin) ([]*plugins.Action, error) {
 	err := json.Unmarshal(config, sc)
 	if err != nil {
 		return nil, err
@@ -148,13 +94,29 @@ func (sc *Scenario) Parse(config []byte, plugin plugins.Plugin) ([]*Action, erro
 		}
 	}
 
-	actions, counter := make([]*Action, sc.countContainers()), 0
+	actions, counter := make([]*plugins.Action, sc.countContainers()), 0
 
 	for _, p := range sc.Playbooks {
-		action := &Action{}
-		if err = action.fromOS(sc.Oses, p.User); err != nil {
-			return nil, err
+		action := &plugins.Action{}
+		os := &os{}
+		if len(sc.Oses) == 0 {
+			return nil, errors.New(utilities.UNKOWN_OSES)
+		} else if len(sc.Oses) == 1 {
+			os = sc.Oses[0]
+		} else {
+			for _, k := range sc.Oses {
+				if k.User == p.User {
+					os = k
+					break
+				}
+			}
+			if os.User == "" {
+				return nil, errors.New(utilities.UNKOWN_OSES)
+			}
 		}
+		action.User = os.User
+		action.PythonInterpreter = os.PythonInterpreter
+
 		if p.State == "" {
 			p.State = utilities.DEFAULT_APP_STATE
 		}
@@ -169,25 +131,33 @@ func (sc *Scenario) Parse(config []byte, plugin plugins.Plugin) ([]*Action, erro
 				if err != nil {
 					return nil, err
 				}
-				for i, _ := range p.Containers {
-					p.Containers[i].Name = p.Name
-					if p.Containers[i].State != "" {
-						p.Containers[i].State = p.State
-					}
-					p.Containers[i].configure(sc, appString, plugin)
-				}
-				action.fromApp(app)
-				action.fromPlaybook(p)
+				sc.configureContainers(p, plugin, appString)
+				app.toAction(action)
+				p.toAction(action)
 			}
+		} else {
+			sc.configureContainers(p, plugin, "")
+			p.toAction(action)
 		}
-		fmt.Println("USER", action.User, action.PythonInterpreter)
 		actions[counter] = action
 		counter++
 	}
-
 	return actions, nil
 }
 
+func (sc *Scenario) configureContainers(p *playbook, plugin plugins.Plugin, appString string) {
+	for i, _ := range p.Containers {
+		p.Containers[i].Name = p.Name
+		if p.Containers[i].State != "" {
+			p.Containers[i].State = p.State
+		}
+		masked := plugin.Mask(p.Containers[i].Params)
+		parsed := utilities.ParseTemplate(masked, sc, appString)
+		unmask := plugin.Unmask(parsed)
+		p.Containers[i].Params = utilities.ParseEnvFlags(unmask)
+		p.Containers[i].Configure()
+	}
+}
 func (sc *Scenario) findApp(name string) (*app, error) {
 	if name != "" {
 		for k, v := range sc.Apps {

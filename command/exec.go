@@ -24,6 +24,12 @@ type params struct {
 	inventory, playbookPath string
 }
 
+func (p *params) pluginConfig() *plugins.PluginConfig {
+	var pc = &plugins.PluginConfig{
+		Debug: p.debug, GitKey: p.gitKey, PrivateKey: p.privateKey, PlaybookPath: p.playbookPath}
+	return pc
+}
+
 type ExecCommand struct {
 	ShutdownCh <-chan struct{}
 	Ui         cli.Ui
@@ -62,8 +68,13 @@ func (c *ExecCommand) Run(args []string) int {
 	utilities.CheckErr(err)
 
 	var scenario parser.Scenario
-	_, err = scenario.Parse(config, myPlugins[0])
+	plugin := myPlugins[0]
+	actions, err := scenario.Parse(config, plugin)
 	utilities.CheckErr(err)
+	for _, a := range actions {
+		err = plugin.Run(a, c.params.pluginConfig())
+		utilities.CheckErr(err)
+	}
 
 	c.Ui.Info(scenario.Id)
 	c.Ui.Info(baseDir)

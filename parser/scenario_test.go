@@ -42,10 +42,11 @@ var testPlugin plugins.Plugin
 
 type instance struct{}
 
-func (i *instance) DefaultPlay() string        { return "test.play" }
-func (i *instance) Mask(input string) string   { return input }
-func (i *instance) Unmask(input string) string { return input }
-func init()                                    { testPlugin = &instance{} }
+func (i *instance) DefaultPlay() string                                            { return "test.play" }
+func (i *instance) Mask(input string) string                                       { return input }
+func (i *instance) Unmask(input string) string                                     { return input }
+func (i *instance) Run(action *plugins.Action, config *plugins.PluginConfig) error { return nil }
+func init()                                                                        { testPlugin = &instance{} }
 
 func TestScenarioParse_HappyPath(t *testing.T) {
 	config := []byte(fmt.Sprintf("{%s%s%s%s}", scenario, oses, apps, playbooks))

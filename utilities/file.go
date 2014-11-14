@@ -50,3 +50,14 @@ func DownloadFile(url string, suffix string) (string, error) {
 	}
 	return fileName, nil
 }
+func WriteFile(content []byte, fileType string, suffix string) string {
+	rand.Seed(time.Now().UnixNano())
+	fileName := fmt.Sprintf("/tmp/hipops-%s-%v.%s", suffix, rand.Intn(1000000), fileType)
+	output, err := os.Create(fileName)
+	defer output.Close()
+
+	CheckErr(err)
+	_, err = io.WriteString(output, fmt.Sprintf("%s", content))
+	CheckErr(err)
+	return fileName
+}
