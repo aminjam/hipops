@@ -2,7 +2,8 @@ package ansible
 
 import (
 	"encoding/json"
-	"fmt"
+	"errors"
+	"path/filepath"
 	"regexp"
 
 	"github.com/aminjam/hipops/plugins"
@@ -27,22 +28,43 @@ func (i *instance) Unmask(input string) string {
 	var p = regexp.MustCompile(`(@ANSIBLE.(&}})*)`)
 	return p.ReplaceAllString(input, "{{ ansible_${2}")
 }
-func (i *instance) Run(action *plugins.Action, config *plugins.PluginConfig) error {
-	if config.PlaybookPath == "" {
-		config.PlaybookPath = "./playbooks"
-	}
-	content, err := json.Marshal(action)
+func (i *instance) Run(a *plugins.Action) error {
+	content, err := json.Marshal(a)
 	if err != nil {
 		return err
 	}
-	fileName := utilities.WriteFile(content, "json", action.Name)
+	fileName, err := utilities.WriteFile(content, "json", a.Suffix)
+	if err != nil {
+		return err
+	}
 	params := []string{
-		fmt.Sprintf("%s/%s", config.PlaybookPath, action.Play),
-		"-i", action.Inventory,
-		"-u", action.User,
-		"--private-key", config.PrivateKey,
+		a.Play,
+		"-i", a.InventoryFile,
+		"-u", a.User,
+		"--private-key", a.PrivateKey,
 		"--extra-vars", "@" + fileName,
 	}
-	fmt.Println(params)
+	switch a.Debug {
+	case 1:
+		params = append(params, "-v")
+	case 2:
+		params = append(params, "-vv")
+	case 3:
+		params = append(params, "-vvv")
+	}
+	return utilities.RunCmd("ansible-playbook", params...)
+}
+func (i *instance) ValidateParams(args ...string) error {
+	var inventoryFile = args[0]
+	var playbookPath = args[1]
+	if _, err := filepath.Abs(inventoryFile); err != nil {
+		return err
+	}
+	if playbookPath == "" {
+		return errors.New("--playbook-path is required for ansible plugin")
+	}
+	if _, err := filepath.Abs(playbookPath); err != nil {
+		return err
+	}
 	return nil
 }

@@ -6,4 +6,6 @@ const (
 	APP_NOT_FOUND         = "app is not found."
 	UNKNOWN_SCENARIO_DEST = "scenario dest is unknown."
 	INVALID_REPOSITORY    = "app repository has invalid format."
+	INVENTORY_MISSING     = "playbook inventory is missing."
+	UNKNOWN_CONTAINERS    = "playbook has no associated container."
 )

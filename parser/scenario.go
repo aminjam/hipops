@@ -63,9 +63,26 @@ type playbook struct {
 	Apps       []string
 }
 
+func (p *playbook) configure(plugin *plugins.Plugin) error {
+	if p.Inventory == "" {
+		return errors.New(utilities.INVENTORY_MISSING)
+	}
+	if len(p.Containers) == 0 {
+		return errors.New(utilities.UNKNOWN_CONTAINERS)
+	}
+	if p.State == "" {
+		p.State = utilities.DEFAULT_APP_STATE
+	}
+	if p.Play == "" {
+		p.Play = (*plugin).DefaultPlay()
+	}
+	return nil
+}
+
 func (p *playbook) toAction(a *plugins.Action) {
 	a.Name = p.Name
 	a.Play = p.Play
+	a.Inventory = p.Inventory
 	a.Containers = p.Containers
 }
 
@@ -77,27 +94,31 @@ type Scenario struct {
 	Playbooks []*playbook
 }
 
-func (sc *Scenario) Parse(config []byte, plugin plugins.Plugin) ([]*plugins.Action, error) {
+func (sc *Scenario) Configure(config []byte) error {
 	err := json.Unmarshal(config, sc)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	sc.Suffix = fmt.Sprintf("%s-%s", sc.Id, sc.Env)
 	if sc.Dest == "" {
-		return nil, errors.New(utilities.UNKNOWN_SCENARIO_DEST)
+		return errors.New(utilities.UNKNOWN_SCENARIO_DEST)
 	}
 	sc.Dest = strings.TrimSuffix(sc.Dest, "/")
 
 	for i, _ := range sc.Apps {
 		if err = sc.Apps[i].configure(sc); err != nil {
-			return nil, err
+			return err
 		}
 	}
+	return nil
+}
 
+func (sc *Scenario) Parse(plugin *plugins.Plugin) ([]*plugins.Action, error) {
 	actions, counter := make([]*plugins.Action, sc.countContainers()), 0
 
 	for _, p := range sc.Playbooks {
 		action := &plugins.Action{}
+		action.Suffix = sc.Suffix
 		os := &os{}
 		if len(sc.Oses) == 0 {
 			return nil, errors.New(utilities.UNKOWN_OSES)
@@ -117,12 +138,7 @@ func (sc *Scenario) Parse(config []byte, plugin plugins.Plugin) ([]*plugins.Acti
 		action.User = os.User
 		action.PythonInterpreter = os.PythonInterpreter
 
-		if p.State == "" {
-			p.State = utilities.DEFAULT_APP_STATE
-		}
-		if p.Play == "" {
-			p.Play = plugin.DefaultPlay()
-		}
+		p.configure(plugin)
 
 		if len(p.Apps) != 0 {
 			for _, appString := range p.Apps {
@@ -145,15 +161,15 @@ func (sc *Scenario) Parse(config []byte, plugin plugins.Plugin) ([]*plugins.Acti
 	return actions, nil
 }
 
-func (sc *Scenario) configureContainers(p *playbook, plugin plugins.Plugin, appString string) {
+func (sc *Scenario) configureContainers(p *playbook, plugin *plugins.Plugin, appString string) {
 	for i, _ := range p.Containers {
 		p.Containers[i].Name = p.Name
-		if p.Containers[i].State != "" {
+		if p.Containers[i].State == "" {
 			p.Containers[i].State = p.State
 		}
-		masked := plugin.Mask(p.Containers[i].Params)
+		masked := (*plugin).Mask(p.Containers[i].Params)
 		parsed := utilities.ParseTemplate(masked, sc, appString)
-		unmask := plugin.Unmask(parsed)
+		unmask := (*plugin).Unmask(parsed)
 		p.Containers[i].Params = utilities.ParseEnvFlags(unmask)
 		p.Containers[i].Configure()
 	}
@@ -162,7 +178,6 @@ func (sc *Scenario) findApp(name string) (*app, error) {
 	if name != "" {
 		for k, v := range sc.Apps {
 			if strings.Contains(v.Name, name) {
-				sc.Apps[k].configure(sc)
 				return sc.Apps[k], nil
 			}
 		}

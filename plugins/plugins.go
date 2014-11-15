@@ -13,23 +13,37 @@ type Plugin interface {
 	DefaultPlay() string
 	Mask(string) string
 	Unmask(string) string
-	Run(*Action, *PluginConfig) error
-}
-type PluginConfig struct {
-	GitKey, PrivateKey, PlaybookPath string
-	Debug                            int
+	Run(*Action) error
+	ValidateParams(arg ...string) error
 }
 type Action struct {
-	Name              string           `json:"name"`
 	Dest              string           `json:"dest"`
-	Inventory         string           `json:"inventory"`
-	User              string           `json:"user"`
 	Play              string           `json:"play"`
+	Inventory         string           `json:"inventory"`
 	PythonInterpreter string           `json:"ansible_python_interpreter,omitempty"`
-	Repository        *Repository      `json:"repository"`
-	Files             []*Customization `json:"files"`
-	Containers        []*Container     `json:"containers"`
+	Repository        *Repository      `json:"repository,omitempty"`
+	Files             []*Customization `json:"files,omitempty"`
+	Containers        []*Container     `json:"containers,omitempty"`
+
+	PrivateKey    string `json:"-"`
+	User          string `json:"-"`
+	InventoryFile string `json:"-"`
+	Name          string `json:"-"`
+	Suffix        string `json:"-"`
+	Debug         int    `json:"-"`
 }
+
+func (a *Action) State() string {
+	state := utilities.DEFAULT_APP_STATE
+	for _, c := range a.Containers {
+		if c.State != state {
+			state = c.State
+			break
+		}
+	}
+	return state
+}
+
 type Repository struct {
 	Branch string `json:"branch"`
 	SshUrl string `json:"sshUrl"`

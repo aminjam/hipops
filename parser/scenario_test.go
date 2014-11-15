@@ -42,16 +42,18 @@ var testPlugin plugins.Plugin
 
 type instance struct{}
 
-func (i *instance) DefaultPlay() string                                            { return "test.play" }
-func (i *instance) Mask(input string) string                                       { return input }
-func (i *instance) Unmask(input string) string                                     { return input }
-func (i *instance) Run(action *plugins.Action, config *plugins.PluginConfig) error { return nil }
-func init()                                                                        { testPlugin = &instance{} }
+func (i *instance) DefaultPlay() string                { return "test.play" }
+func (i *instance) Mask(input string) string           { return input }
+func (i *instance) Unmask(input string) string         { return input }
+func (i *instance) Run(action *plugins.Action) error   { return nil }
+func (i *instance) ValidateParams(arg ...string) error { return nil }
+func init()                                            { testPlugin = &instance{} }
 
 func TestScenarioParse_HappyPath(t *testing.T) {
 	config := []byte(fmt.Sprintf("{%s%s%s%s}", scenario, oses, apps, playbooks))
 	var sc Scenario
-	actions, err := sc.Parse(config, testPlugin)
+	sc.Configure(config)
+	actions, err := sc.Parse(&testPlugin)
 
 	spec := utilities.Spec(t)
 	spec.Expect(err).ToEqual(nil)
@@ -77,12 +79,14 @@ func TestScenarioParse_UnhappyPath(t *testing.T) {
 `
 	config := []byte(fmt.Sprintf("{%s%s%s%s}", scenario, oses, apps, playbooks_missing_app))
 	var sc0 Scenario
-	_, err := sc0.Parse(config, testPlugin)
+	err := sc0.Configure(config)
+	_, err = sc0.Parse(&testPlugin)
 	spec.Expect(err.Error()).ToEqual(utilities.APP_NOT_FOUND)
 
 	config = []byte(fmt.Sprintf("{%s%s%s}", scenario, apps, playbooks_missing_app))
 	var sc1 Scenario
-	_, err = sc1.Parse(config, testPlugin)
+	err = sc1.Configure(config)
+	_, err = sc1.Parse(&testPlugin)
 	spec.Expect(err.Error()).ToEqual(utilities.UNKOWN_OSES)
 
 	const scenario_unkown_dest = `
@@ -92,7 +96,7 @@ func TestScenarioParse_UnhappyPath(t *testing.T) {
 `
 	config = []byte(fmt.Sprintf("{%s%s%s%s}", scenario_unkown_dest, oses, apps, playbooks))
 	var sc2 Scenario
-	_, err = sc2.Parse(config, testPlugin)
+	err = sc2.Configure(config)
 	spec.Expect(err.Error()).ToEqual(utilities.UNKNOWN_SCENARIO_DEST)
 
 	const apps_invalid_repo = `
@@ -108,6 +112,6 @@ func TestScenarioParse_UnhappyPath(t *testing.T) {
 `
 	config = []byte(fmt.Sprintf("{%s%s%s%s}", scenario, oses, apps_invalid_repo, playbooks))
 	var sc3 Scenario
-	_, err = sc3.Parse(config, testPlugin)
+	err = sc3.Configure(config)
 	spec.Expect(err.Error()).ToEqual(utilities.INVALID_REPOSITORY)
 }

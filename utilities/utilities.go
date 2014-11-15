@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"fmt"
 	"html/template"
+	"io"
 	"log"
 	"os"
+	"os/exec"
 	"regexp"
 	"strings"
 
@@ -36,7 +38,30 @@ func ParseTemplate(input string, base interface{}, app string) string {
 	t.Execute(buf, base)
 	return buf.String()
 }
-
+func RunCmd(name string, arg ...string) error {
+	fmt.Println("Running...", arg)
+	//return nil
+	cmd := exec.Command(name, arg...)
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return err
+	}
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return err
+	}
+	err = cmd.Start()
+	if err != nil {
+		return err
+	}
+	go io.Copy(os.Stdout, stdout)
+	go io.Copy(os.Stderr, stderr)
+	err = cmd.Wait()
+	if err != nil {
+		return err
+	}
+	return nil
+}
 func formatTemplate(input string, app string) string {
 	app = strings.Replace(app, "{{", "(", -1)
 	app = strings.Replace(app, "}}", ")", -1)

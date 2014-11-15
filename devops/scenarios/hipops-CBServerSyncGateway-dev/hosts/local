@@ -1,5 +1,0 @@
-[tag_App-Role_CB-SERVER-00]
-172.17.8.101 ansible_connection=ssh
-
-[tag_App-Role_CB-SYNC-GATEWAY]
-172.17.8.102 ansible_connection=ssh

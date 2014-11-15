@@ -18,7 +18,7 @@ func CleanupTempFiles(suffix string) {
 	files, err := d.Readdir(-1)
 	CheckErr(err)
 
-	fmt.Println("Reading files for /tmp")
+	fmt.Println(fmt.Sprintf("Reading files for /tmp/hipops-%s*", suffix))
 
 	for _, file := range files {
 		if file.Mode().IsRegular() {
@@ -50,14 +50,17 @@ func DownloadFile(url string, suffix string) (string, error) {
 	}
 	return fileName, nil
 }
-func WriteFile(content []byte, fileType string, suffix string) string {
+func WriteFile(content []byte, fileType string, suffix string) (string, error) {
 	rand.Seed(time.Now().UnixNano())
 	fileName := fmt.Sprintf("/tmp/hipops-%s-%v.%s", suffix, rand.Intn(1000000), fileType)
 	output, err := os.Create(fileName)
 	defer output.Close()
-
-	CheckErr(err)
+	if err != nil {
+		return "", err
+	}
 	_, err = io.WriteString(output, fmt.Sprintf("%s", content))
-	CheckErr(err)
-	return fileName
+	if err != nil {
+		return "", err
+	}
+	return fileName, nil
 }

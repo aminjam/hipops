@@ -2,6 +2,7 @@ package command
 
 import (
 	"flag"
+	"fmt"
 	"io/ioutil"
 	"path/filepath"
 	"strings"
@@ -13,10 +14,10 @@ import (
 	"github.com/mitchellh/cli"
 )
 
-var myPlugins []plugins.Plugin
+var myPlugins []*plugins.Plugin
 
 type params struct {
-	config, gitKey, plugin,
+	baseDir, config, gitKey, plugin,
 	privateKey, trigger string
 	debug int
 
@@ -24,10 +25,23 @@ type params struct {
 	inventory, playbookPath string
 }
 
-func (p *params) pluginConfig() *plugins.PluginConfig {
-	var pc = &plugins.PluginConfig{
-		Debug: p.debug, GitKey: p.gitKey, PrivateKey: p.privateKey, PlaybookPath: p.playbookPath}
-	return pc
+func (p *params) toAction(a *plugins.Action) {
+	if a.Repository != nil && a.Repository.SshKey == "" {
+		a.Repository.SshKey = p.gitKey
+	}
+	p.playbookPath = strings.TrimSuffix(p.playbookPath, "/")
+	if p.playbookPath != "" {
+		a.Play = fmt.Sprintf("%s/%s", p.playbookPath, a.Play)
+	}
+	a.InventoryFile = p.inventory
+	a.PrivateKey = p.privateKey
+	a.Debug = p.debug
+	baseDir := filepath.Dir(p.config)
+	for i, _ := range a.Files {
+		if strings.Contains(a.Files[i].Src, "@BASEDIR") {
+			a.Files[i].Src, _ = filepath.Abs(strings.Replace(a.Files[i].Src, "@BASEDIR", baseDir, -1))
+		}
+	}
 }
 
 type ExecCommand struct {
@@ -63,23 +77,31 @@ func (c *ExecCommand) Run(args []string) int {
 		c.Ui.Error(c.Help())
 		return 1
 	}
+	plugin := myPlugins[0]
+	switch c.params.plugin {
+	case "ansible":
+		err := (*plugin).ValidateParams(c.params.inventory, c.params.playbookPath)
+		utilities.CheckErr(err)
+	}
 	config, err := ioutil.ReadFile(c.params.config)
-	baseDir := filepath.Dir(c.params.config)
 	utilities.CheckErr(err)
 
 	var scenario parser.Scenario
-	plugin := myPlugins[0]
-	actions, err := scenario.Parse(config, plugin)
+	err = scenario.Configure(config)
+	utilities.CheckErr(err)
+	utilities.CleanupTempFiles(scenario.Suffix)
+
+	actions, err := scenario.Parse(plugin)
 	utilities.CheckErr(err)
 	for _, a := range actions {
-		err = plugin.Run(a, c.params.pluginConfig())
-		utilities.CheckErr(err)
+		if c.params.trigger == "" || a.State() == utilities.DEFAULT_APP_STATE || (c.params.trigger != "" && strings.HasSuffix(a.Name, c.params.trigger)) {
+			c.params.toAction(a)
+			err = (*plugin).Run(a)
+			utilities.CheckErr(err)
+		}
 	}
 
 	c.Ui.Info(scenario.Id)
-	c.Ui.Info(baseDir)
-
-	utilities.CleanupTempFiles(scenario.Suffix)
 
 	return 0
 }
@@ -107,5 +129,5 @@ Options:
 }
 
 func init() {
-	myPlugins = []plugins.Plugin{ansible.Instance}
+	myPlugins = []*plugins.Plugin{&ansible.Instance}
 }
