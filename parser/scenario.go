@@ -105,15 +105,15 @@ func (sc *Scenario) Configure(config []byte) error {
 	}
 	sc.Dest = strings.TrimSuffix(sc.Dest, "/")
 
-	for i, _ := range sc.Apps {
-		if err = sc.Apps[i].configure(sc); err != nil {
-			return err
-		}
-	}
 	return nil
 }
 
 func (sc *Scenario) Parse(plugin *plugins.Plugin) ([]*plugins.Action, error) {
+	for i, _ := range sc.Apps {
+		if err := sc.Apps[i].configure(sc); err != nil {
+			return nil, err
+		}
+	}
 	actions, counter := make([]*plugins.Action, sc.countContainers()), 0
 
 	for _, p := range sc.Playbooks {

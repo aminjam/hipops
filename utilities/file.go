@@ -1,6 +1,7 @@
 package utilities
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"math/rand"
@@ -63,4 +64,14 @@ func WriteFile(content []byte, fileType string, suffix string) (string, error) {
 		return "", err
 	}
 	return fileName, nil
+}
+func Exists(path string) error {
+	_, err := os.Stat(path)
+	if err == nil {
+		return nil
+	}
+	if os.IsNotExist(err) {
+		return errors.New("")
+	}
+	return err
 }

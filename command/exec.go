@@ -25,8 +25,8 @@ type params struct {
 	inventory, playbookPath string
 }
 
-func (p *params) toAction(a *plugins.Action) {
-	if a.Repository != nil && a.Repository.SshKey == "" {
+func (p *params) toAction(a *plugins.Action) error {
+	if a.Repository != nil && p.gitKey != "" {
 		a.Repository.SshKey = p.gitKey
 	}
 	p.playbookPath = strings.TrimSuffix(p.playbookPath, "/")
@@ -42,6 +42,7 @@ func (p *params) toAction(a *plugins.Action) {
 			a.Files[i].Src, _ = filepath.Abs(strings.Replace(a.Files[i].Src, "@BASEDIR", baseDir, -1))
 		}
 	}
+	return nil
 }
 
 type ExecCommand struct {
@@ -95,7 +96,8 @@ func (c *ExecCommand) Run(args []string) int {
 	utilities.CheckErr(err)
 	for _, a := range actions {
 		if c.params.trigger == "" || a.State() == utilities.DEFAULT_APP_STATE || (c.params.trigger != "" && strings.HasSuffix(a.Name, c.params.trigger)) {
-			c.params.toAction(a)
+			err = c.params.toAction(a)
+			utilities.CheckErr(err)
 			err = (*plugin).Run(a)
 			utilities.CheckErr(err)
 		}
