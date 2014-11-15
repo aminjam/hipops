@@ -1,9 +1,10 @@
 package command
 
 import (
+	"testing"
+
 	"github.com/aminjam/hipops/utilities"
 	"github.com/mitchellh/cli"
-	"testing"
 )
 
 func TestExecCommand_implements(t *testing.T) {

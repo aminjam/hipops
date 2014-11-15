@@ -113,5 +113,33 @@ func TestScenarioParse_UnhappyPath(t *testing.T) {
 	config = []byte(fmt.Sprintf("{%s%s%s%s}", scenario, oses, apps_invalid_repo, playbooks))
 	var sc3 Scenario
 	err = sc3.Configure(config)
+	_, err = sc3.Parse(&testPlugin)
 	spec.Expect(err.Error()).ToEqual(utilities.INVALID_REPOSITORY)
+
+	const playbooks_inventory_missing = `
+  ,"playbooks": [{
+    "apps": ["{{index .Apps 0}}"],
+    "containers": [{
+      "params": "-v {{.App.Dest}}:/home/app -p 9990:{{index .App.Ports 0}} -e MONGO_OPTIONS='--smallfiles' -d {{.App.Image}} /run.sh"
+    }]
+  }]
+`
+	config = []byte(fmt.Sprintf("{%s%s%s%s}", scenario, oses, apps, playbooks_inventory_missing))
+	var sc4 Scenario
+	err = sc4.Configure(config)
+	_, err = sc4.Parse(&testPlugin)
+	spec.Expect(err.Error()).ToEqual(utilities.INVENTORY_MISSING)
+
+	const playbooks_unknown_containers = `
+  ,"playbooks": [{
+    "inventory": "tag_App-Role_SAMOMY-DEV",
+    "apps": ["{{index .Apps 0}}"],
+    "containers": []
+  }]
+`
+	config = []byte(fmt.Sprintf("{%s%s%s%s}", scenario, oses, apps, playbooks_unknown_containers))
+	var sc5 Scenario
+	err = sc5.Configure(config)
+	_, err = sc5.Parse(&testPlugin)
+	spec.Expect(err.Error()).ToEqual(utilities.UNKNOWN_CONTAINERS)
 }

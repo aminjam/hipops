@@ -138,7 +138,9 @@ func (sc *Scenario) Parse(plugin *plugins.Plugin) ([]*plugins.Action, error) {
 		action.User = os.User
 		action.PythonInterpreter = os.PythonInterpreter
 
-		p.configure(plugin)
+		if err := p.configure(plugin); err != nil {
+			return nil, err
+		}
 
 		if len(p.Apps) != 0 {
 			for _, appString := range p.Apps {
