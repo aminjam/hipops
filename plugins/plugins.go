@@ -110,3 +110,11 @@ func (c *Container) Configure() {
 		c.Params = fmt.Sprintf("--name %s %s", c.Name, c.Params)
 	}
 }
+
+func (a *Container) BaseDuplicate() *Container {
+	dup := &Container{}
+	dup.Params = a.Params
+	dup.Name = a.Name
+	dup.State = a.State
+	return dup
+}
