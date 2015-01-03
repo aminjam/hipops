@@ -63,6 +63,22 @@ type playbook struct {
 	Apps       []string
 }
 
+func (p *playbook) baseDuplicate() *playbook {
+	dup := &playbook{}
+	dup.Name = p.Name
+	dup.Play = p.Play
+	dup.State = p.State
+	dup.Inventory = p.Inventory
+	dup.User = p.User
+	dup.State = p.State
+	dupContainers := make([]*plugins.Container, len(p.Containers))
+	for i, _ := range p.Containers {
+		dupContainers[i] = p.Containers[i].BaseDuplicate()
+	}
+	dup.Containers = dupContainers
+	return dup
+}
+
 func (p *playbook) configure(plugin *plugins.Plugin) error {
 	if p.Inventory == "" {
 		return errors.New(utilities.INVENTORY_MISSING)
@@ -144,15 +160,16 @@ func (sc *Scenario) Parse(plugin *plugins.Plugin) ([]*plugins.Action, error) {
 
 		if len(p.Apps) != 0 {
 			for _, appString := range p.Apps {
-				subAction := action.BaseDuplicate()
 				p.Name = utilities.ParseTemplate("{{.App.Name}}", sc, appString)
-				app, err := sc.findApp(p.Name)
+				subPlaybook := p.baseDuplicate()
+				subAction := action.BaseDuplicate()
+				app, err := sc.findApp(subPlaybook.Name)
 				if err != nil {
 					return nil, err
 				}
-				sc.configureContainers(p, plugin, appString)
+				sc.configureContainers(subPlaybook, plugin, appString)
 				app.toAction(subAction)
-				p.toAction(subAction)
+				subPlaybook.toAction(subAction)
 				actions[counter] = subAction
 				counter++
 			}
