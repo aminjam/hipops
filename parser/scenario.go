@@ -144,21 +144,24 @@ func (sc *Scenario) Parse(plugin *plugins.Plugin) ([]*plugins.Action, error) {
 
 		if len(p.Apps) != 0 {
 			for _, appString := range p.Apps {
+				subAction := action.BaseDuplicate()
 				p.Name = utilities.ParseTemplate("{{.App.Name}}", sc, appString)
 				app, err := sc.findApp(p.Name)
 				if err != nil {
 					return nil, err
 				}
 				sc.configureContainers(p, plugin, appString)
-				app.toAction(action)
-				p.toAction(action)
+				app.toAction(subAction)
+				p.toAction(subAction)
+				actions[counter] = subAction
+				counter++
 			}
 		} else {
 			sc.configureContainers(p, plugin, "")
 			p.toAction(action)
+			actions[counter] = action
+			counter++
 		}
-		actions[counter] = action
-		counter++
 	}
 	return actions, nil
 }
