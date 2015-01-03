@@ -33,6 +33,14 @@ type Action struct {
 	Debug         int    `json:"-"`
 }
 
+func (a *Action) BaseDuplicate() *Action {
+	dup := &Action{}
+	dup.Suffix = a.Suffix
+	dup.User = a.User
+	dup.PythonInterpreter = a.PythonInterpreter
+	return dup
+}
+
 func (a *Action) State() string {
 	state := utilities.DEFAULT_APP_STATE
 	for _, c := range a.Containers {
